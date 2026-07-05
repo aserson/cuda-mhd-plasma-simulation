@@ -270,6 +270,8 @@ template class CpuBuffer2D<double>;
 template class CpuBuffer2D<float>;
 template class GpuBuffer2D<double>;
 template class GpuBuffer2D<float>;
+// Single-element counter for the forcing phase RNG
+template class GpuBuffer2D<unsigned int>;
 template class GpuComplexBuffer2D<double>;
 template class GpuComplexBuffer2D<float>;
 

@@ -1,5 +1,6 @@
 #include "Configs.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -24,6 +25,20 @@ Configs::Configs(const std::filesystem::path& filePath) : _filePath(filePath) {
     // Equation Coefficients
     _nu = getNu();
     _eta = getEta();
+
+    // Forcing Coefficients
+    _kineticForcing = getKineticForcing();
+    _magneticForcing = getMagneticForcing();
+    _forcingWN = getForcingWN();
+    _forcingBand = getForcingBand();
+    _forcingEnabled = (_kineticForcing != 0.) || (_magneticForcing != 0.);
+
+    // The lower ring boundary stays positive so that the mean (k = 0)
+    // mode is never forced
+    double forcingKMin = std::max((double)_forcingWN - _forcingBand, 0.5);
+    double forcingKMax = (double)_forcingWN + _forcingBand;
+    _forcingKSqMin = forcingKMin * forcingKMin;
+    _forcingKSqMax = forcingKMax * forcingKMax;
 
     // Initial Condition Coefficients
     _kineticEnergy = getKineticEnergy();
@@ -82,6 +97,17 @@ std::string Configs::ParametersPrint() const {
 
     output << std::endl;
 
+    if (_forcingEnabled) {
+        output << "Forcing:" << std::endl;
+        output << "  Fkin = " << std::setw(13) << std::left << _kineticForcing
+               << std::endl;
+        output << "  Fmag = " << std::setw(13) << std::left << _magneticForcing
+               << std::endl;
+        output << "  WN = " << _forcingWN << " +- " << _forcingBand
+               << std::endl;
+        output << std::endl;
+    }
+
     return output.str();
 }
 
@@ -94,6 +120,10 @@ void Configs::ParametersSave(const std::filesystem::path& outputDir) const {
             << "Emag0: " << _magneticEnergy << std::endl
             << "nu: " << _nu << std::endl
             << "eta: " << _eta << std::endl
+            << "kineticForcing: " << _kineticForcing << std::endl
+            << "magneticForcing: " << _magneticForcing << std::endl
+            << "forcingWN: " << _forcingWN << std::endl
+            << "forcingBand: " << _forcingBand << std::endl
             << "outStep: " << _outputStep << std::endl
             << "outStart: " << _outputStart << std::endl
             << "outStop: " << _outputStop << std::endl;
@@ -178,6 +208,38 @@ double Configs::getEta() {
         return _config["eta"].as<double>();
     } else {
         return DefaultConfigs::defaultEta;
+    }
+}
+
+double Configs::getKineticForcing() {
+    if (_config["KineticForcing"]) {
+        return _config["KineticForcing"].as<double>();
+    } else {
+        return DefaultConfigs::defaultKineticForcing;
+    }
+}
+
+double Configs::getMagneticForcing() {
+    if (_config["MagneticForcing"]) {
+        return _config["MagneticForcing"].as<double>();
+    } else {
+        return DefaultConfigs::defaultMagneticForcing;
+    }
+}
+
+unsigned int Configs::getForcingWN() {
+    if (_config["ForcingWN"]) {
+        return _config["ForcingWN"].as<unsigned int>();
+    } else {
+        return DefaultConfigs::defaultForcingWN;
+    }
+}
+
+double Configs::getForcingBand() {
+    if (_config["ForcingBand"]) {
+        return _config["ForcingBand"].as<double>();
+    } else {
+        return DefaultConfigs::defaultForcingBand;
     }
 }
 

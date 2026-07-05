@@ -1,5 +1,7 @@
 #include "cuda/Solver.cuh"
 
+#include <ctime>
+
 #include "cuda/SolverKernels.cuh"
 
 namespace mhd {
@@ -22,7 +24,11 @@ Solver<T>::Solver(const mhd::Configs& configs)
     : Helper<T>(configs),
       _graph(nullptr),
       _graphExec(nullptr),
-      _graphCreated(false) {}
+      _graphCreated(false),
+      _forcingStep(1),
+      _forcingSeed(static_cast<unsigned int>(std::time(nullptr))) {
+    _forcingStep.clear();
+}
 
 template <typename T>
 Solver<T>::~Solver() {
@@ -34,6 +40,13 @@ Solver<T>::~Solver() {
 
 template <typename T>
 void Solver<T>::doStep() {
+    // New forcing phases for this time step; both stages of the scheme
+    // see the same counter value and therefore the same forcing
+    if (this->_configs._forcingEnabled) {
+        this->_caller.callKernel(IncrementForcingStep_kernel, dim3(1, 1, 1),
+                                 dim3(1, 1, 1), 0, _forcingStep.data());
+    }
+
     // First step
     calcKineticRigthPart();
     timeSchemeKin();
@@ -105,11 +118,20 @@ void Solver<T>::calcKineticRigthPart() {
     this->_transformator.forward(this->DoubleBufferG(),
                                  this->ComplexBufferB());
 
+    // The forcing amplitude carries the N^2 spectral factor of the fields
+    // (the inverse transform divides by it through lambda)
+    const double spectralNorm = (double)this->_configs._gridLength *
+                                (double)this->_configs._gridLength;
+
     this->_caller.call(KineticRigthPart_kernel<T>, this->Vorticity().data(),
                        this->ComplexBuffer().data(),
                        this->ComplexBufferB().data(), this->RightPart().data(),
                        this->_configs._gridLength, (T)this->_configs._nu,
-                       this->_configs._dealWN);
+                       this->_configs._dealWN, _forcingStep.data(),
+                       _forcingSeed,
+                       (T)(this->_configs._kineticForcing * spectralNorm),
+                       (T)this->_configs._forcingKSqMin,
+                       (T)this->_configs._forcingKSqMax);
 
     // J(stream, potential) for the magnetic right part: reuses the stream
     // and potential derivatives computed above
@@ -125,12 +147,20 @@ void Solver<T>::calcKineticRigthPart() {
 
 template <typename T>
 void Solver<T>::calcMagneticRightPart() {
+    const double spectralNorm = (double)this->_configs._gridLength *
+                                (double)this->_configs._gridLength;
+
     // The Jacobian was prepared by calcKineticRigthPart; the stream and
-    // potential it was built from are unchanged since then
+    // potential it was built from are unchanged since then. The seed is
+    // salted so the magnetic phases are independent of the kinetic ones
     this->_caller.call(ThirdRigthPart_kernel<T>, this->Potential().data(),
                        this->ComplexBuffer().data(), this->RightPart().data(),
                        this->_configs._gridLength, (T)this->_configs._eta,
-                       this->_configs._dealWN);
+                       this->_configs._dealWN, _forcingStep.data(),
+                       _forcingSeed ^ 0x9E3779B9u,
+                       (T)(this->_configs._magneticForcing * spectralNorm),
+                       (T)this->_configs._forcingKSqMin,
+                       (T)this->_configs._forcingKSqMax);
 }
 
 template <typename T>

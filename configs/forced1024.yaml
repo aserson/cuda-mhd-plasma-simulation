@@ -1,0 +1,18 @@
+GridLength : 1024
+Time : 20.
+OutputStep : 0.01
+
+nu : 1.e-4
+eta : 1.e-4
+
+# External energy pumping on the wavenumber ring |k| in [ForcingWN - ForcingBand, ForcingWN + ForcingBand]:
+# random-phase forcing added to the vorticity (KineticForcing) and to the
+# magnetic potential (MagneticForcing) equations; 0 disables the channel.
+# The saturated energy level scales roughly as the amplitude squared
+KineticForcing : 0.01
+MagneticForcing : 0.01
+ForcingWN : 10
+ForcingBand : 1.5
+
+ShowGraphics : true
+ColorMap : plasma

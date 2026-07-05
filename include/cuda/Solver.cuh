@@ -13,6 +13,12 @@ private:
     cudaGraphExec_t _graphExec;
     bool _graphCreated;
 
+    // Forcing: the per-step counter lives in device memory (like the time
+    // step) and feeds the stateless phase RNG of the right-part kernels,
+    // so the captured graph produces new phases on every launch
+    GpuBuffer2D<unsigned int> _forcingStep;
+    unsigned int _forcingSeed;
+
     void calcDerivatives(const GpuComplexBuffer2D<T>& field,
                          GpuBuffer2D<T>& derivativeX,
                          GpuBuffer2D<T>& derivativeY);

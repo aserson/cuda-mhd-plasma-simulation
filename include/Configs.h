@@ -39,6 +39,12 @@ private:
         static constexpr double defaultNu = 1.e-4;
         static constexpr double defaultEta = 1.e-4;
 
+        // Forcing Coefficients
+        static constexpr double defaultKineticForcing = 0.;
+        static constexpr double defaultMagneticForcing = 0.;
+        static const unsigned int defaultForcingWN = 10;
+        static constexpr double defaultForcingBand = 1.5;
+
         // Initial Condition Coefficients
         static constexpr double defaultKineticEnergy = 0.5;
         static constexpr double defaultMagneticEnergy = 0.5;
@@ -85,6 +91,12 @@ private:
     // Equation Coefficients
     double getNu();
     double getEta();
+
+    // Forcing Coefficients
+    double getKineticForcing();
+    double getMagneticForcing();
+    unsigned int getForcingWN();
+    double getForcingBand();
 
     // Initial Condition Coefficients
     double getKineticEnergy();
@@ -136,6 +148,16 @@ public:
     // Equation Coefficients
     double _nu;
     double _eta;
+
+    // Forcing Coefficients: energy pumping at the wavenumber ring
+    // |k| in [ForcingWN - ForcingBand, ForcingWN + ForcingBand]
+    bool _forcingEnabled;
+    double _kineticForcing;
+    double _magneticForcing;
+    unsigned int _forcingWN;
+    double _forcingBand;
+    double _forcingKSqMin;
+    double _forcingKSqMax;
 
     // Initial Condition Coefficients
     double _kineticEnergy;
