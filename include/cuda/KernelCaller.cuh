@@ -72,8 +72,11 @@ public:
 
 template <typename Kernel, typename... TArgs>
 void KernelCaller::call(Kernel kernel, TArgs... args) {
+    // Kernels index as idx = width * x + y with y taken from threadIdx.x,
+    // so warps traverse the contiguous y-dimension (coalesced access):
+    // grid covers gridLength / 2 columns (y) by gridLength rows (x)
     dim3 dimBlock = dim3(_dimBlockX, _dimBlockY, 1);
-    dim3 dimGrid = dim3(_dimGridX, _dimGridY / 2, 1);
+    dim3 dimGrid = dim3(_dimGridX / 2, _dimGridY, 1);
     size_t sharedSize = 0;
 
     callKernel(kernel, dimBlock, dimGrid, sharedSize, args...);
@@ -112,6 +115,11 @@ void KernelCaller::callKernel(Kernel kernel, dim3 dimBlock, dim3 dimGrid,
 #ifdef __CUDACC__
     kernel<<<dimGrid, dimBlock, sharedSize>>>(args...);
     CUDA_CALL(cudaGetLastError());
+#ifndef NDEBUG
+    // Debug-only: surface asynchronous kernel errors at the launch site.
+    // Release relies on default-stream ordering: the host must read results
+    // only through synchronous cudaMemcpy, which waits for preceding kernels.
     CUDA_CALL(cudaDeviceSynchronize());
+#endif
 #endif  // __CUDACC__
 }

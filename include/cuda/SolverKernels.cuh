@@ -10,8 +10,8 @@ __global__ void DealaliasingDiffByX_kernel(const cufftDoubleComplex* input,
                                            cufftDoubleComplex* output,
                                            unsigned int gridLength,
                                            unsigned int dealWN) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2)
@@ -25,7 +25,7 @@ __global__ void DealaliasingDiffByX_kernel(const cufftDoubleComplex* input,
         output[idx].y = 0.0;
     }
 
-    if ((blockIdx.y == gridDim.y - 1) && (threadIdx.y == blockDim.y - 1)) {
+    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
         output[idx + 1].x = 0.0;
         output[idx + 1].y = 0.0;
     }
@@ -35,8 +35,8 @@ __global__ void DealaliasingDiffByY_kernel(const cufftDoubleComplex* input,
                                            cufftDoubleComplex* output,
                                            unsigned int gridLength,
                                            unsigned int dealWN) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2)
@@ -50,7 +50,7 @@ __global__ void DealaliasingDiffByY_kernel(const cufftDoubleComplex* input,
         output[idx].y = 0.0;
     }
 
-    if ((blockIdx.y == gridDim.y - 1) && (threadIdx.y == blockDim.y - 1)) {
+    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
         output[idx + 1].x = 0.0;
         output[idx + 1].y = 0.0;
     }
@@ -60,8 +60,8 @@ __global__ void JacobianFirstPart_kernel(double* inputA, double* inputB,
                                          double* output,
                                          unsigned int gridLength,
                                          double lambda) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = gridLength * x + y;
 
     output[idx] = inputA[idx] * inputB[idx] * lambda * lambda;
@@ -71,8 +71,8 @@ __global__ void JacobianSecondPart_kernel(double* inputA, double* inputB,
                                           double* output,
                                           unsigned int gridLength,
                                           double lambda) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = gridLength * x + y;
 
     output[idx] = output[idx] - inputA[idx] * inputB[idx] * lambda * lambda;
@@ -81,8 +81,8 @@ __global__ void JacobianSecondPart_kernel(double* inputA, double* inputB,
 __global__ void Dealaliasing_kernel(cufftDoubleComplex* output,
                                     unsigned int gridLength,
                                     unsigned int dealWN) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2)
@@ -93,7 +93,7 @@ __global__ void Dealaliasing_kernel(cufftDoubleComplex* output,
         output[idx].y = 0.0;
     }
 
-    if ((blockIdx.y == gridDim.y - 1) && (threadIdx.y == blockDim.y - 1)) {
+    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
         output[idx + 1].x = 0.0;
         output[idx + 1].y = 0.0;
     }
@@ -104,8 +104,8 @@ __global__ void FirstRigthPart_kernel(cufftDoubleComplex* w,
                                       cufftDoubleComplex* jacobian,
                                       cufftDoubleComplex* rightPart,
                                       unsigned int gridLength, double nu) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2)
@@ -119,8 +119,8 @@ __global__ void FirstRigthPart_kernel(cufftDoubleComplex* w,
 __global__ void SecondRigthPart_kernel(cufftDoubleComplex* jacobian,
                                        cufftDoubleComplex* rightPart,
                                        unsigned int gridLength) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     rightPart[idx].x += jacobian[idx].x;
@@ -131,8 +131,8 @@ __global__ void ThirdRigthPart_kernel(cufftDoubleComplex* a,
                                       cufftDoubleComplex* jacobian,
                                       cufftDoubleComplex* rightPart,
                                       unsigned int gridLength, double eta) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2)
@@ -149,8 +149,8 @@ __global__ void TimeScheme_kernel(cufftDoubleComplex* field,
                                   const cufftDoubleComplex* rightPart,
                                   unsigned int gridLength, double dt,
                                   double weight = 1.0) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     field[idx].x = oldField[idx].x + weight * rightPart[idx].x * dt;

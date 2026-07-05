@@ -14,8 +14,8 @@ namespace mhd {
 // Multiplication Kernels
 __global__ static void MultDouble_kernel(double* input, unsigned int gridLength,
                                          double value, double* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = gridLength * x + y;
 
     output[idx] = input[idx] * value;
@@ -24,8 +24,8 @@ __global__ static void MultDouble_kernel(double* input, unsigned int gridLength,
 __global__ static void MultComplex_kernel(const cufftDoubleComplex* input,
                                           unsigned int gridLength, double value,
                                           cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     output[idx].x = input[idx].x * value;
@@ -36,8 +36,8 @@ __global__ static void MultComplex_kernel(const cufftDoubleComplex* input,
 __global__ static void DiffByX_kernel(const cufftDoubleComplex* input,
                                       unsigned int gridLength,
                                       cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2) {
@@ -51,8 +51,8 @@ __global__ static void DiffByX_kernel(const cufftDoubleComplex* input,
 __global__ static void DiffByY_kernel(const cufftDoubleComplex* input,
                                       unsigned int gridLength,
                                       cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     output[idx].x = -(double)y * input[idx].y;
@@ -62,8 +62,8 @@ __global__ static void DiffByY_kernel(const cufftDoubleComplex* input,
 __global__ static void LaplasOperator_kernel(const cufftDoubleComplex* input,
                                              unsigned int gridLength,
                                              cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2) {
@@ -78,8 +78,8 @@ __global__ static void LaplasOperator_kernel(const cufftDoubleComplex* input,
 __global__ static void MinusLaplasOperator_kernel(
     const cufftDoubleComplex* input, unsigned int gridLength,
     cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2) {
@@ -94,8 +94,8 @@ __global__ static void MinusLaplasOperator_kernel(
 __global__ static void InverseLaplasOperator_kernel(
     const cufftDoubleComplex* input, unsigned int gridLength,
     cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2) {
@@ -110,8 +110,8 @@ __global__ static void InverseLaplasOperator_kernel(
 __global__ static void MinusInverseLaplasOperator_kernel(
     const cufftDoubleComplex* input, unsigned int gridLength,
     cufftDoubleComplex* output) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2) {
@@ -149,8 +149,8 @@ __global__ static void EnergyTransform_kernel(double* velocityX,
                                               double* velocityY, double* energy,
                                               unsigned int gridLength,
                                               double lambda) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = gridLength * x + y;
 
     velocityX[idx] *= lambda;
@@ -184,8 +184,8 @@ __global__ static void EnergyIntegrate_kernel(double* field, double* sum) {
 // Initial Conditions
 __global__ static void FillStates(curandState* state, unsigned int gridLength,
                                   unsigned long seed) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     curand_init(seed, idx, 0, &state[idx]);
@@ -195,8 +195,8 @@ __global__ static void FillNormally_kernel(cufftDoubleComplex* f,
                                            curandState* state,
                                            unsigned int gridLength,
                                            unsigned int averageWN) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     if (x > gridLength / 2) {

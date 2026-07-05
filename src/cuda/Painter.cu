@@ -35,8 +35,8 @@ __global__ void DoubleToPixels_kernel(unsigned char* output,
                                       const double* input,
                                       unsigned int gridLength,
                                       float amplitude) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = gridLength * x + y;
 
     float value = static_cast<float>(input[idx]);
