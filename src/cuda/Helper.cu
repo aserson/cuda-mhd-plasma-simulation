@@ -7,58 +7,63 @@
 #include "cuda/HelperKernels.cuh"
 
 namespace mhd {
-double Helper::maxRotorAmplitude(const GpuComplexBuffer2D& field) {
-    _caller.call(DiffByX_kernel, field.data(), _configs._gridLength,
+template <typename T>
+double Helper<T>::maxRotorAmplitude(const GpuComplexBuffer2D<T>& field) {
+    _caller.call(DiffByX_kernel<T>, field.data(), _configs._gridLength,
                  ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
-    _caller.callLinear(Max_kernel, DoubleBufferA().data(),
+    _caller.callLinear(Max_kernel<T>, DoubleBufferA().data(),
                        DoubleBufferB().data());
-    _caller.callFinal(MaxFinal_kernel, DoubleBufferB().data(),
+    _caller.callFinal(MaxFinal_kernel<T>, DoubleBufferB().data(),
                       _configs._linearLength, DoubleBufferC().data());
     CpuReducedValue().copyFromDevice(DoubleBufferC().data());
-    double maxX = CpuReducedValue()[0];
+    double maxX = (double)CpuReducedValue()[0];
 
-    _caller.call(DiffByY_kernel, field.data(), _configs._gridLength,
+    _caller.call(DiffByY_kernel<T>, field.data(), _configs._gridLength,
                  ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
-    _caller.callLinear(Max_kernel, DoubleBufferA().data(),
+    _caller.callLinear(Max_kernel<T>, DoubleBufferA().data(),
                        DoubleBufferB().data());
-    _caller.callFinal(MaxFinal_kernel, DoubleBufferB().data(),
+    _caller.callFinal(MaxFinal_kernel<T>, DoubleBufferB().data(),
                       _configs._linearLength, DoubleBufferC().data());
     CpuReducedValue().copyFromDevice(DoubleBufferC().data());
-    double maxY = CpuReducedValue()[0];
+    double maxY = (double)CpuReducedValue()[0];
 
     return _configs._lambda * fmax(maxX, maxY);
 }
 
-double Helper::calcEnergy(const GpuComplexBuffer2D& field) {
-    _caller.call(DiffByX_kernel, field.data(), _configs._gridLength,
+template <typename T>
+double Helper<T>::calcEnergy(const GpuComplexBuffer2D<T>& field) {
+    _caller.call(DiffByX_kernel<T>, field.data(), _configs._gridLength,
                  ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
 
-    _caller.call(DiffByY_kernel, field.data(), _configs._gridLength,
+    _caller.call(DiffByY_kernel<T>, field.data(), _configs._gridLength,
                  ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferB());
 
-    _caller.callFull(EnergyTransform_kernel, DoubleBufferA().data(),
+    _caller.callFull(EnergyTransform_kernel<T>, DoubleBufferA().data(),
                      DoubleBufferB().data(), DoubleBufferC().data(),
-                     _configs._gridLength, _configs._lambda);
-    _caller.callLinear(EnergyIntegrate_kernel, DoubleBufferC().data(),
+                     _configs._gridLength, (T)_configs._lambda);
+    _caller.callLinear(EnergyIntegrate_kernel<T>, DoubleBufferC().data(),
                        DoubleBufferA().data());
-    _caller.callFinal(SumFinal_kernel, DoubleBufferA().data(),
+    _caller.callFinal(SumFinal_kernel<T>, DoubleBufferA().data(),
                       _configs._linearLength, DoubleBufferB().data());
 
     CpuReducedValue().copyFromDevice(DoubleBufferB().data());
 
-    return (4. * M_PI * M_PI) * _configs._lambda * CpuReducedValue()[0];
+    return (4. * M_PI * M_PI) * _configs._lambda *
+           (double)CpuReducedValue()[0];
 }
 
-void Helper::normallize(GpuComplexBuffer2D& field, double ratio) {
-    _caller.call(MultComplex_kernel, field.data(), field.length(), ratio,
+template <typename T>
+void Helper<T>::normallize(GpuComplexBuffer2D<T>& field, double ratio) {
+    _caller.call(MultComplex_kernel<T>, field.data(), field.length(), (T)ratio,
                  field.data());
 }
 
-Helper::Helper(const Configs& configs)
+template <typename T>
+Helper<T>::Helper(const Configs& configs)
     : _configs(configs),
       _transformator(configs._gridLength),
       _fields(configs._gridLength),
@@ -67,155 +72,191 @@ Helper::Helper(const Configs& configs)
     _transformator.setStream(_caller.stream());
 }
 
-const GpuDoubleBuffer2D& Helper::getVorticity() {
-    _caller.call(MultComplex_kernel, Vorticity().data(), Vorticity().length(),
-                 _configs._lambda, ComplexBuffer().data());
+template <typename T>
+const GpuBuffer2D<T>& Helper<T>::getVorticity() {
+    _caller.call(MultComplex_kernel<T>, Vorticity().data(),
+                 Vorticity().length(), (T)_configs._lambda,
+                 ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
     return DoubleBufferA();
 }
 
-const GpuDoubleBuffer2D& Helper::getStream() {
-    _caller.call(MultComplex_kernel, Stream().data(), Stream().length(),
-                 _configs._lambda, ComplexBuffer().data());
+template <typename T>
+const GpuBuffer2D<T>& Helper<T>::getStream() {
+    _caller.call(MultComplex_kernel<T>, Stream().data(), Stream().length(),
+                 (T)_configs._lambda, ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
     return DoubleBufferA();
 }
 
-const GpuDoubleBuffer2D& Helper::getCurrent() {
-    _caller.call(MultComplex_kernel, Current().data(), Current().length(),
-                 _configs._lambda, ComplexBuffer().data());
+template <typename T>
+const GpuBuffer2D<T>& Helper<T>::getCurrent() {
+    _caller.call(MultComplex_kernel<T>, Current().data(), Current().length(),
+                 (T)_configs._lambda, ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
     return DoubleBufferA();
 }
 
-const GpuDoubleBuffer2D& Helper::getPotential() {
-    _caller.call(MultComplex_kernel, Potential().data(), Potential().length(),
-                 _configs._lambda, ComplexBuffer().data());
+template <typename T>
+const GpuBuffer2D<T>& Helper<T>::getPotential() {
+    _caller.call(MultComplex_kernel<T>, Potential().data(),
+                 Potential().length(), (T)_configs._lambda,
+                 ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
     return DoubleBufferA();
 }
 
-GpuComplexBuffer2D& Helper::Vorticity() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::Vorticity() {
     return _fields._vorticity;
 }
 
-GpuComplexBuffer2D& Helper::Stream() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::Stream() {
     return _fields._stream;
 }
 
-GpuComplexBuffer2D& Helper::Current() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::Current() {
     return _fields._current;
 }
 
-GpuComplexBuffer2D& Helper::Potential() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::Potential() {
     return _fields._potential;
 }
 
-GpuComplexBuffer2D& Helper::OldVorticity() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::OldVorticity() {
     return _fields._oldVorticity;
 }
 
-GpuComplexBuffer2D& Helper::OldPotential() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::OldPotential() {
     return _fields._oldPotential;
 }
 
-GpuComplexBuffer2D& Helper::RightPart() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::RightPart() {
     return _fields._rightPart;
 }
 
-GpuComplexBuffer2D& Helper::ComplexBuffer() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::ComplexBuffer() {
     return _fields._complexBuffer;
 }
 
-GpuComplexBuffer2D& Helper::ComplexBufferB() {
+template <typename T>
+GpuComplexBuffer2D<T>& Helper<T>::ComplexBufferB() {
     return _fields._complexBufferB;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferA() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferA() {
     return _fields._doubleBufferA;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferB() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferB() {
     return _fields._doubleBufferB;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferC() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferC() {
     return _fields._doubleBufferC;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferD() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferD() {
     return _fields._doubleBufferD;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferE() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferE() {
     return _fields._doubleBufferE;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferF() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferF() {
     return _fields._doubleBufferF;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferG() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferG() {
     return _fields._doubleBufferG;
 }
 
-GpuDoubleBuffer2D& Helper::DoubleBufferH() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::DoubleBufferH() {
     return _fields._doubleBufferH;
 }
 
-GpuDoubleBuffer2D& Helper::GpuTimeStep() {
+template <typename T>
+GpuBuffer2D<T>& Helper<T>::GpuTimeStep() {
     return _fields._gpuTimeStep;
 }
 
-CpuDoubleBuffer1D& Helper::CpuReducedValue() {
+template <typename T>
+CpuBuffer1D<T>& Helper<T>::CpuReducedValue() {
     return _fields._cpuReducedValue;
 }
 
-CpuDoubleBuffer2D& Helper::Output() {
+template <typename T>
+CpuBuffer2D<T>& Helper<T>::Output() {
     return _fields._output;
 }
 
-void Helper::updateEnergies() {
+template <typename T>
+void Helper<T>::updateEnergies() {
     _currents.kineticEnergy = calcEnergy(Stream());
     _currents.magneticEnergy = calcEnergy(Potential());
 }
 
-void Helper::updateStream() {
-    _caller.call(MinusInverseLaplasOperator_kernel, Vorticity().data(),
+template <typename T>
+void Helper<T>::updateStream() {
+    _caller.call(MinusInverseLaplasOperator_kernel<T>, Vorticity().data(),
                  Vorticity().length(), Stream().data());
 }
 
-void Helper::updateVorticity() {
-    _caller.call(MinusLaplasOperator_kernel, Stream().data(), Stream().length(),
-                 Vorticity().data());
+template <typename T>
+void Helper<T>::updateVorticity() {
+    _caller.call(MinusLaplasOperator_kernel<T>, Stream().data(),
+                 Stream().length(), Vorticity().data());
 }
 
-void Helper::updatePotential() {
-    _caller.call(InverseLaplasOperator_kernel, Current().data(),
+template <typename T>
+void Helper<T>::updatePotential() {
+    _caller.call(InverseLaplasOperator_kernel<T>, Current().data(),
                  Current().length(), Potential().data());
 }
 
-void Helper::updateCurrent() {
-    _caller.call(LaplasOperator_kernel, Potential().data(),
+template <typename T>
+void Helper<T>::updateCurrent() {
+    _caller.call(LaplasOperator_kernel<T>, Potential().data(),
                  Potential().length(), Current().data());
 }
 
-void Helper::updateStreamCurrent() {
-    _caller.call(StreamCurrent_kernel, Vorticity().data(), Potential().data(),
-                 Stream().data(), Current().data(), Vorticity().length());
+template <typename T>
+void Helper<T>::updateStreamCurrent() {
+    _caller.call(StreamCurrent_kernel<T>, Vorticity().data(),
+                 Potential().data(), Stream().data(), Current().data(),
+                 Vorticity().length());
 }
 
-void Helper::timeStep() {
+template <typename T>
+void Helper<T>::timeStep() {
     _currents.time += _currents.timeStep;
     _currents.stepNumber++;
 }
 
-void Helper::saveOldFields() {
+template <typename T>
+void Helper<T>::saveOldFields() {
     Vorticity().copyToDevice(OldVorticity().data());
     Potential().copyToDevice(OldPotential().data());
 }
 
-void Helper::updateTimeStep() {
+template <typename T>
+void Helper<T>::updateTimeStep() {
     if (_currents.stepNumber % _configs._timeStepUpdateInterval != 0)
         return;
 
@@ -232,15 +273,17 @@ void Helper::updateTimeStep() {
 
     _currents.timeStep = fmin(_currents.timeStep, maxTimeStep);
 
-    GpuTimeStep().copyFromHost(&_currents.timeStep);
+    T deviceTimeStep = (T)_currents.timeStep;
+    GpuTimeStep().copyFromHost(&deviceTimeStep);
 }
 
-void Helper::fillNormally(unsigned long seed, int offset) {
+template <typename T>
+void Helper<T>::fillNormally(unsigned long seed, int offset) {
     GpuStateBuffer2D state(_configs._gridLength);
     double ratio, energy;
 
     _caller.call(FillStates, state.data(), state.length(), offset);
-    _caller.call(FillNormally_kernel, Stream().data(), state.data(),
+    _caller.call(FillNormally_kernel<T>, Stream().data(), state.data(),
                  Stream().length(), _configs._averageWN);
     energy = calcEnergy(Stream());
     ratio = (energy > 0) ? std::sqrt(_configs._kineticEnergy / energy) : 1.;
@@ -248,7 +291,7 @@ void Helper::fillNormally(unsigned long seed, int offset) {
     updateVorticity();
 
     _caller.call(FillStates, state.data(), state.length(), offset + offset);
-    _caller.call(FillNormally_kernel, Potential().data(), state.data(),
+    _caller.call(FillNormally_kernel<T>, Potential().data(), state.data(),
                  Potential().length(), _configs._averageWN);
     energy = calcEnergy(Potential());
     ratio = (energy > 0) ? std::sqrt(_configs._magneticEnergy / energy) : 1.;
@@ -256,9 +299,14 @@ void Helper::fillNormally(unsigned long seed, int offset) {
     updateCurrent();
 }
 
-bool Helper::shouldContinue() {
+template <typename T>
+bool Helper<T>::shouldContinue() {
     return _currents.time <= _configs._time;
 }
+
+// The solver runs in either double or float precision
+template class Helper<double>;
+template class Helper<float>;
 
 CudaTimeCounter::CudaTimeCounter() {
     cudaEventCreate(&_start);

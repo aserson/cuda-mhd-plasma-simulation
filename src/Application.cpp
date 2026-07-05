@@ -98,6 +98,50 @@ std::filesystem::path CreateOutputDir(const mhd::Configs& configs,
     return outputPath;
 }
 
+// The whole simulation runs in the real type T (double or float) chosen
+// by the Precision config parameter
+template <typename T>
+void runSimulation(const mhd::Configs& configs, mhd::Writer& writer,
+                   opengl::Creater& creater) {
+    mhd::CudaTimeCounter solverCounter;
+    std::cout << "Creating solver... ";
+    solverCounter.start();
+    mhd::Solver<T> solver(configs);
+    solverCounter.stop();
+    std::cout << "Done. Time: " << solverCounter.getTime() << std::endl;
+
+    // Initial Conditions
+    solver.fillNormally(static_cast<unsigned long>(std::time(nullptr)));
+
+    // Saving fields from previous timelayer
+    solver.saveOldFields();
+
+    // Initial Time Step
+    solver.updateTimeStep();
+
+    std::cout << std::endl << "Simulation starts..." << std::endl << std::endl;
+
+    // Initial Data Output
+    writer.saveData(solver, creater);
+    creater.PrepareToRun();
+
+    // Main Cycle of the Program
+    while (solver.shouldContinue() && creater.ShouldOpen()) {
+        // Time Integration Scheme: two-step scheme executed as a
+        // single CUDA graph
+        solver.step();
+
+        // Update Time Step (energies are updated by the writer on output)
+        solver.updateTimeStep();
+        solver.timeStep();
+
+        // Data Output
+        creater.Render(writer.saveData(solver, creater));
+
+        creater.WindowUpdate();
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::cout << "This is two-dimensional magnetohydrodynamic simulation"
               << std::endl
@@ -164,46 +208,10 @@ int main(int argc, char* argv[]) {
 
     mhd::CudaTimeCounter runCounter;
     runCounter.start();
-    {
-        mhd::CudaTimeCounter solverCounter;
-        std::cout << "Creating solver... ";
-        solverCounter.start();
-        mhd::Solver solver(configs);
-        solverCounter.stop();
-        std::cout << "Done. Time: " << solverCounter.getTime() << std::endl;
-
-        // Initial Conditions
-        solver.fillNormally(static_cast<unsigned long>(std::time(nullptr)));
-
-        // Saving fields from previous timelayer
-        solver.saveOldFields();
-
-        // Initial Time Step
-        solver.updateTimeStep();
-
-        std::cout << std::endl
-                  << "Simulation starts..." << std::endl
-                  << std::endl;
-
-        // Initial Data Output
-        writer.saveData(solver, creater);
-        creater.PrepareToRun();
-
-        // Main Cycle of the Program
-        while (solver.shouldContinue() && creater.ShouldOpen()) {
-            // Time Integration Scheme: two-step scheme executed as a
-            // single CUDA graph
-            solver.step();
-
-            // Update Time Step (energies are updated by the writer on output)
-            solver.updateTimeStep();
-            solver.timeStep();
-
-            // Data Output
-            creater.Render(writer.saveData(solver, creater));
-
-            creater.WindowUpdate();
-        }
+    if (configs._singlePrecision) {
+        runSimulation<float>(configs, writer, creater);
+    } else {
+        runSimulation<double>(configs, writer, creater);
     }
     runCounter.stop();
     std::cout << std::endl

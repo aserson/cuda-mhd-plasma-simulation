@@ -14,39 +14,87 @@ void checkCufftResult(cufftResult_t result, const std::string& functionName,
 }
 
 namespace mhd {
-FastFourierTransformator::FastFourierTransformator(unsigned int gridLength) {
-    CUFFT_CALL(cufftPlan2d(&planD2Z, gridLength, gridLength, CUFFT_D2Z));
-    CUFFT_CALL(cufftPlan2d(&planZ2D, gridLength, gridLength, CUFFT_Z2D));
+
+namespace {
+template <typename T>
+struct FftPlans;
+
+template <>
+struct FftPlans<double> {
+    static constexpr cufftType forward = CUFFT_D2Z;
+    static constexpr cufftType inverse = CUFFT_Z2D;
+
+    static cufftResult execForward(cufftHandle plan, double* input,
+                                   cufftDoubleComplex* output) {
+        return cufftExecD2Z(plan, input, output);
+    }
+    static cufftResult execInverse(cufftHandle plan, cufftDoubleComplex* input,
+                                   double* output) {
+        return cufftExecZ2D(plan, input, output);
+    }
+};
+
+template <>
+struct FftPlans<float> {
+    static constexpr cufftType forward = CUFFT_R2C;
+    static constexpr cufftType inverse = CUFFT_C2R;
+
+    static cufftResult execForward(cufftHandle plan, float* input,
+                                   cufftComplex* output) {
+        return cufftExecR2C(plan, input, output);
+    }
+    static cufftResult execInverse(cufftHandle plan, cufftComplex* input,
+                                   float* output) {
+        return cufftExecC2R(plan, input, output);
+    }
+};
+}  // namespace
+
+template <typename T>
+FastFourierTransformator<T>::FastFourierTransformator(unsigned int gridLength) {
+    CUFFT_CALL(
+        cufftPlan2d(&planForward, gridLength, gridLength, FftPlans<T>::forward));
+    CUFFT_CALL(
+        cufftPlan2d(&planInverse, gridLength, gridLength, FftPlans<T>::inverse));
 }
 
-FastFourierTransformator::~FastFourierTransformator() {
-    CUFFT_CALL(cufftDestroy(planD2Z));
-    CUFFT_CALL(cufftDestroy(planZ2D));
+template <typename T>
+FastFourierTransformator<T>::~FastFourierTransformator() {
+    CUFFT_CALL(cufftDestroy(planForward));
+    CUFFT_CALL(cufftDestroy(planInverse));
 }
 
-void FastFourierTransformator::setStream(cudaStream_t stream) {
-    CUFFT_CALL(cufftSetStream(planD2Z, stream));
-    CUFFT_CALL(cufftSetStream(planZ2D, stream));
+template <typename T>
+void FastFourierTransformator<T>::setStream(cudaStream_t stream) {
+    CUFFT_CALL(cufftSetStream(planForward, stream));
+    CUFFT_CALL(cufftSetStream(planInverse, stream));
 }
 
-void FastFourierTransformator::forwardFFT(double* input,
-                                          cufftDoubleComplex* output) const {
-    CUFFT_CALL(cufftExecD2Z(planD2Z, input, output));
+template <typename T>
+void FastFourierTransformator<T>::forwardFFT(T* input, Complex* output) const {
+    CUFFT_CALL(FftPlans<T>::execForward(planForward, input, output));
 }
 
-void FastFourierTransformator::inverseFFT(cufftDoubleComplex* input,
-                                          double* output) const {
-    CUFFT_CALL(cufftExecZ2D(planZ2D, input, output));
+template <typename T>
+void FastFourierTransformator<T>::inverseFFT(Complex* input, T* output) const {
+    CUFFT_CALL(FftPlans<T>::execInverse(planInverse, input, output));
 }
 
-void FastFourierTransformator::forward(GpuDoubleBuffer2D& input,
-                                       GpuComplexBuffer2D& output) const {
-    CUFFT_CALL(cufftExecD2Z(planD2Z, input.data(), output.data()));
+template <typename T>
+void FastFourierTransformator<T>::forward(GpuBuffer2D<T>& input,
+                                          GpuComplexBuffer2D<T>& output) const {
+    CUFFT_CALL(
+        FftPlans<T>::execForward(planForward, input.data(), output.data()));
 }
 
-void FastFourierTransformator::inverse(GpuComplexBuffer2D& input,
-                                       GpuDoubleBuffer2D& output) const {
-    CUFFT_CALL(cufftExecZ2D(planZ2D, input.data(), output.data()));
+template <typename T>
+void FastFourierTransformator<T>::inverse(GpuComplexBuffer2D<T>& input,
+                                          GpuBuffer2D<T>& output) const {
+    CUFFT_CALL(
+        FftPlans<T>::execInverse(planInverse, input.data(), output.data()));
 }
+
+template class FastFourierTransformator<double>;
+template class FastFourierTransformator<float>;
 
 }  // namespace mhd

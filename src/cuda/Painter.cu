@@ -10,7 +10,8 @@ namespace graphics {
 static const unsigned int colorMapLength = 256;
 __constant__ unsigned char colorMap[colorMapLength * 3];
 
-__global__ static void Max_kernel(const double* input, float* output) {
+template <typename T>
+__global__ static void Max_kernel(const T* input, float* output) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int tidx = threadIdx.x;
 
@@ -31,8 +32,8 @@ __global__ static void Max_kernel(const double* input, float* output) {
         output[blockIdx.x] = sharedBuffer[0];
 }
 
-__global__ void DoubleToPixels_kernel(unsigned char* output,
-                                      const double* input,
+template <typename T>
+__global__ void DoubleToPixels_kernel(unsigned char* output, const T* input,
                                       unsigned int gridLength,
                                       float amplitude) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
@@ -92,8 +93,9 @@ bool Painter::readColorMap(const std::string& colorMapName,
     return true;
 }
 
-float Painter::findAmplitude(const mhd::GpuDoubleBuffer2D& src) {
-    _caller.callLinearFloat(Max_kernel, src.data(), _gpuFloat.data());
+template <typename T>
+float Painter::findAmplitude(const mhd::GpuBuffer2D<T>& src) {
+    _caller.callLinearFloat(Max_kernel<T>, src.data(), _gpuFloat.data());
     _cpuFloat.copyFromDevice(_gpuFloat.data());
 
     float v = 0.f;
@@ -104,12 +106,18 @@ float Painter::findAmplitude(const mhd::GpuDoubleBuffer2D& src) {
     return v;
 }
 
-void Painter::doubleToPixels(const mhd::GpuDoubleBuffer2D& src) {
+template <typename T>
+void Painter::doubleToPixels(const mhd::GpuBuffer2D<T>& src) {
     float amplitude = findAmplitude(src);
 
-    _caller.callFull(DoubleToPixels_kernel, _gpuPixels.data(), src.data(),
+    _caller.callFull(DoubleToPixels_kernel<T>, _gpuPixels.data(), src.data(),
                      src.length(), amplitude);
 
     _cpuPixels.copyFromDevice(_gpuPixels.data());
 }
+
+// The solver runs in either double or float precision
+template void Painter::doubleToPixels<double>(
+    const mhd::GpuBuffer2D<double>& src);
+template void Painter::doubleToPixels<float>(const mhd::GpuBuffer2D<float>& src);
 }  // namespace graphics

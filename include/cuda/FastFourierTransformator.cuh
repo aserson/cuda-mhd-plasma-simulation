@@ -4,9 +4,13 @@
 #include "Buffers.cuh"
 
 namespace mhd {
+template <typename T>
 class FastFourierTransformator {
+public:
+    using Complex = Complex_t<T>;
+
 private:
-    cufftHandle planD2Z, planZ2D;
+    cufftHandle planForward, planInverse;
 
 public:
     FastFourierTransformator(unsigned int gridLength);
@@ -15,10 +19,10 @@ public:
 
     void setStream(cudaStream_t stream);
 
-    void forwardFFT(double* input, cufftDoubleComplex* output) const;
-    void inverseFFT(cufftDoubleComplex* input, double* output) const;
+    void forwardFFT(T* input, Complex* output) const;
+    void inverseFFT(Complex* input, T* output) const;
 
-    void forward(GpuDoubleBuffer2D& input, GpuComplexBuffer2D& output) const;
-    void inverse(GpuComplexBuffer2D& input, GpuDoubleBuffer2D& output) const;
+    void forward(GpuBuffer2D<T>& input, GpuComplexBuffer2D<T>& output) const;
+    void inverse(GpuComplexBuffer2D<T>& input, GpuBuffer2D<T>& output) const;
 };
 }  // namespace mhd

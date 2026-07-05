@@ -18,8 +18,26 @@ std::string Writer::uintToStr(unsigned int value) {
     return output.str();
 }
 
-void Writer::save(const double* field, const std::filesystem::path& filePath) {
+// Fields are stored on disk as double regardless of the solver precision
+template <>
+void Writer::save<double>(const double* field,
+                          const std::filesystem::path& filePath) {
     _output.copyFromDevice(field);
+
+    std::ofstream fData(filePath, std::ios::binary | std::ios::out);
+    fData.write((char*)(_output.data()), _output.size());
+    fData.close();
+}
+
+template <>
+void Writer::save<float>(const float* field,
+                         const std::filesystem::path& filePath) {
+    _outputFloat.copyFromDevice(field);
+
+    unsigned int length = _output.length() * _output.length();
+    for (unsigned int i = 0; i < length; i++) {
+        _output[i] = (double)_outputFloat[i];
+    }
 
     std::ofstream fData(filePath, std::ios::binary | std::ios::out);
     fData.write((char*)(_output.data()), _output.size());
@@ -36,6 +54,7 @@ Writer::Writer(const std::filesystem::path& outputPath,
     : _outputPath(outputPath),
       _painter(configs, resPath),
       _output(configs._gridLength),
+      _outputFloat(configs._gridLength),
       _outputTime(configs._outputStart),
       _outputStep(configs._outputStep),
       _outputStop(configs._outputStop),
@@ -45,7 +64,8 @@ Writer::Writer(const std::filesystem::path& outputPath,
                 configs._saveStream,    configs._savePotential,
                 configs._showGraphics} {}
 
-bool Writer::saveData(mhd::Helper& helper, opengl::Creater& creater) {
+template <typename T>
+bool Writer::saveData(mhd::Helper<T>& helper, opengl::Creater& creater) {
     // Energies are only consumed by the output below (shouldWrite implies
     // shouldPaint), so they are not computed on the remaining time steps
     if (shouldPaint(helper._currents.time)) {
@@ -102,6 +122,12 @@ bool Writer::saveData(mhd::Helper& helper, opengl::Creater& creater) {
     }
     return false;
 }
+
+// The solver runs in either double or float precision
+template bool Writer::saveData<double>(mhd::Helper<double>& helper,
+                                       opengl::Creater& creater);
+template bool Writer::saveData<float>(mhd::Helper<float>& helper,
+                                      opengl::Creater& creater);
 
 void Writer::saveCurrents(const Currents& currents,
                           const std::filesystem::path& filePath) {

@@ -4,83 +4,108 @@
 #include <curand_kernel.h>
 
 namespace mhd {
-class CpuDoubleBuffer1D {
+
+// Maps the real type of the simulation to the matching cufft complex type
+template <typename T>
+struct FftTypes;
+
+template <>
+struct FftTypes<double> {
+    using Complex = cufftDoubleComplex;
+};
+
+template <>
+struct FftTypes<float> {
+    using Complex = cufftComplex;
+};
+
+template <typename T>
+using Complex_t = typename FftTypes<T>::Complex;
+
+template <typename T>
+class CpuBuffer1D {
 private:
-    double* _buffer;
+    T* _buffer;
     unsigned int _bufferLength;
     unsigned int _bufferSize;
 
 public:
-    CpuDoubleBuffer1D();
-    CpuDoubleBuffer1D(unsigned int bufferLength);
-    ~CpuDoubleBuffer1D();
+    CpuBuffer1D();
+    CpuBuffer1D(unsigned int bufferLength);
+    ~CpuBuffer1D();
 
-    double* data();
-    const double* data() const;
+    T* data();
+    const T* data() const;
 
-    double& operator[](unsigned int index);
-    const double& operator[](unsigned int index) const;
+    T& operator[](unsigned int index);
+    const T& operator[](unsigned int index) const;
 
     unsigned int size() const;
     unsigned int length() const;
 
     void clear();
-    void copyToDevice(double* dst) const;
-    void copyFromDevice(const double* src);
+    void copyToDevice(T* dst) const;
+    void copyFromDevice(const T* src);
 };
 
-class CpuDoubleBuffer2D {
+template <typename T>
+class CpuBuffer2D {
 private:
-    double* _buffer;
+    T* _buffer;
     unsigned int _sideLength;
     unsigned int _bufferSize;
 
 public:
-    CpuDoubleBuffer2D();
-    CpuDoubleBuffer2D(unsigned int sideLength);
-    ~CpuDoubleBuffer2D();
+    CpuBuffer2D();
+    CpuBuffer2D(unsigned int sideLength);
+    ~CpuBuffer2D();
 
-    double* data();
-    const double* data() const;
+    T* data();
+    const T* data() const;
 
-    double& operator[](unsigned int index);
-    const double& operator[](unsigned int index) const;
+    T& operator[](unsigned int index);
+    const T& operator[](unsigned int index) const;
 
     unsigned int size() const;
     unsigned int length() const;
 
     void clear();
-    void copyToDevice(double* dst) const;
-    void copyFromDevice(const double* src);
+    void copyToDevice(T* dst) const;
+    void copyFromDevice(const T* src);
 };
 
-class GpuDoubleBuffer2D {
+template <typename T>
+class GpuBuffer2D {
 private:
-    double* _buffer;
+    T* _buffer;
     unsigned int _sideLength;
     unsigned int _bufferSize;
 
 public:
-    GpuDoubleBuffer2D();
-    GpuDoubleBuffer2D(unsigned int sideLength);
-    ~GpuDoubleBuffer2D();
+    GpuBuffer2D();
+    GpuBuffer2D(unsigned int sideLength);
+    ~GpuBuffer2D();
 
-    double* data();
-    const double* data() const;
+    T* data();
+    const T* data() const;
 
     unsigned int size() const;
     unsigned int length() const;
 
     void clear();
-    void copyToHost(double* dst) const;
-    void copyFromHost(const double* src);
-    void copyToDevice(double* dst) const;
-    void copyFromDevice(const double* src);
+    void copyToHost(T* dst) const;
+    void copyFromHost(const T* src);
+    void copyToDevice(T* dst) const;
+    void copyFromDevice(const T* src);
 };
 
+template <typename T>
 class GpuComplexBuffer2D {
+public:
+    using Complex = Complex_t<T>;
+
 private:
-    cufftDoubleComplex* _buffer;
+    Complex* _buffer;
     unsigned int _sideLength;
     unsigned int _bufferSize;
 
@@ -89,18 +114,24 @@ public:
     GpuComplexBuffer2D(unsigned int sideLength);
     ~GpuComplexBuffer2D();
 
-    cufftDoubleComplex* data();
-    const cufftDoubleComplex* data() const;
+    Complex* data();
+    const Complex* data() const;
 
     unsigned int size() const;
     unsigned int length() const;
 
     void clear();
-    void copyToHost(cufftDoubleComplex* dst) const;
-    void copyFromHost(const cufftDoubleComplex* src);
-    void copyToDevice(cufftDoubleComplex* dst) const;
-    void copyFromDevice(const cufftDoubleComplex* src);
+    void copyToHost(Complex* dst) const;
+    void copyFromHost(const Complex* src);
+    void copyToDevice(Complex* dst) const;
+    void copyFromDevice(const Complex* src);
 };
+
+// Aliases for the double-precision buffers used by the host-facing code
+// (Writer, Painter), which stays in double regardless of the solver type
+using CpuDoubleBuffer1D = CpuBuffer1D<double>;
+using CpuDoubleBuffer2D = CpuBuffer2D<double>;
+using GpuDoubleBuffer2D = GpuBuffer2D<double>;
 
 class GpuStateBuffer2D {
 private:

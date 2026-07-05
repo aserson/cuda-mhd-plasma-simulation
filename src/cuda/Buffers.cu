@@ -4,106 +4,130 @@
 
 namespace mhd {
 
-// CpuDoubleBuffer1D functions definitions
-CpuDoubleBuffer1D::CpuDoubleBuffer1D()
+// CpuBuffer1D functions definitions
+template <typename T>
+CpuBuffer1D<T>::CpuBuffer1D()
     : _buffer(nullptr), _bufferLength(0), _bufferSize(0) {}
 
-CpuDoubleBuffer1D::CpuDoubleBuffer1D(unsigned int bufferLength)
+template <typename T>
+CpuBuffer1D<T>::CpuBuffer1D(unsigned int bufferLength)
     : _bufferLength(bufferLength) {
-    _bufferSize = _bufferLength * sizeof(double);
+    _bufferSize = _bufferLength * sizeof(T);
 
     CUDA_CALL(
         cudaHostAlloc((void**)&_buffer, _bufferSize, cudaHostAllocDefault));
 }
 
-CpuDoubleBuffer1D::~CpuDoubleBuffer1D() {
+template <typename T>
+CpuBuffer1D<T>::~CpuBuffer1D() {
     CUDA_CALL(cudaFreeHost(_buffer));
 }
 
-double* CpuDoubleBuffer1D::data() {
+template <typename T>
+T* CpuBuffer1D<T>::data() {
     return _buffer;
 }
 
-const double* CpuDoubleBuffer1D::data() const {
+template <typename T>
+const T* CpuBuffer1D<T>::data() const {
     return _buffer;
 }
 
-double& CpuDoubleBuffer1D::operator[](unsigned int index) {
+template <typename T>
+T& CpuBuffer1D<T>::operator[](unsigned int index) {
     return _buffer[index];
 }
 
-const double& CpuDoubleBuffer1D::operator[](unsigned int index) const {
+template <typename T>
+const T& CpuBuffer1D<T>::operator[](unsigned int index) const {
     return _buffer[index];
 }
 
-unsigned int CpuDoubleBuffer1D::size() const {
+template <typename T>
+unsigned int CpuBuffer1D<T>::size() const {
     return _bufferSize;
 }
 
-unsigned int CpuDoubleBuffer1D::length() const {
+template <typename T>
+unsigned int CpuBuffer1D<T>::length() const {
     return _bufferLength;
 }
 
-void CpuDoubleBuffer1D::clear() {
+template <typename T>
+void CpuBuffer1D<T>::clear() {
     memset(_buffer, 0x0, _bufferSize);
 }
-void CpuDoubleBuffer1D::copyToDevice(double* dst) const {
+
+template <typename T>
+void CpuBuffer1D<T>::copyToDevice(T* dst) const {
     CUDA_CALL(cudaMemcpy(dst, _buffer, _bufferSize, cudaMemcpyHostToDevice));
 }
 
-void CpuDoubleBuffer1D::copyFromDevice(const double* src) {
+template <typename T>
+void CpuBuffer1D<T>::copyFromDevice(const T* src) {
     CUDA_CALL(cudaMemcpy(_buffer, src, _bufferSize, cudaMemcpyDeviceToHost));
 }
 
-// CpuDoubleBuffer2D functions definitions
-CpuDoubleBuffer2D::CpuDoubleBuffer2D()
+// CpuBuffer2D functions definitions
+template <typename T>
+CpuBuffer2D<T>::CpuBuffer2D()
     : _buffer(nullptr), _sideLength(0), _bufferSize(0) {}
 
-CpuDoubleBuffer2D::CpuDoubleBuffer2D(unsigned int sideLength)
-    : _sideLength(sideLength) {
-    _bufferSize = _sideLength * _sideLength * sizeof(double);
+template <typename T>
+CpuBuffer2D<T>::CpuBuffer2D(unsigned int sideLength) : _sideLength(sideLength) {
+    _bufferSize = _sideLength * _sideLength * sizeof(T);
 
     CUDA_CALL(
         cudaHostAlloc((void**)&_buffer, _bufferSize, cudaHostAllocDefault));
 }
 
-CpuDoubleBuffer2D::~CpuDoubleBuffer2D() {
+template <typename T>
+CpuBuffer2D<T>::~CpuBuffer2D() {
     CUDA_CALL(cudaFreeHost(_buffer));
 }
 
-double* CpuDoubleBuffer2D::data() {
+template <typename T>
+T* CpuBuffer2D<T>::data() {
     return _buffer;
 }
 
-const double* CpuDoubleBuffer2D::data() const {
+template <typename T>
+const T* CpuBuffer2D<T>::data() const {
     return _buffer;
 }
 
-double& CpuDoubleBuffer2D::operator[](unsigned int index) {
+template <typename T>
+T& CpuBuffer2D<T>::operator[](unsigned int index) {
     return _buffer[index];
 }
 
-const double& CpuDoubleBuffer2D::operator[](unsigned int index) const {
+template <typename T>
+const T& CpuBuffer2D<T>::operator[](unsigned int index) const {
     return _buffer[index];
 }
 
-unsigned int CpuDoubleBuffer2D::size() const {
+template <typename T>
+unsigned int CpuBuffer2D<T>::size() const {
     return _bufferSize;
 }
 
-unsigned int CpuDoubleBuffer2D::length() const {
+template <typename T>
+unsigned int CpuBuffer2D<T>::length() const {
     return _sideLength;
 }
 
-void CpuDoubleBuffer2D::clear() {
+template <typename T>
+void CpuBuffer2D<T>::clear() {
     memset(_buffer, 0x0, _bufferSize);
 }
 
-void CpuDoubleBuffer2D::copyToDevice(double* dst) const {
+template <typename T>
+void CpuBuffer2D<T>::copyToDevice(T* dst) const {
     CUDA_CALL(cudaMemcpy(dst, _buffer, _bufferSize, cudaMemcpyHostToDevice));
 }
 
-void CpuDoubleBuffer2D::copyFromDevice(const double* src) {
+template <typename T>
+void CpuBuffer2D<T>::copyFromDevice(const T* src) {
     if (src != nullptr) {
         CUDA_CALL(
             cudaMemcpy(_buffer, src, _bufferSize, cudaMemcpyDeviceToHost));
@@ -113,108 +137,141 @@ void CpuDoubleBuffer2D::copyFromDevice(const double* src) {
     }
 }
 
-// GpuDoubleBuffer2D functions definitions
-GpuDoubleBuffer2D::GpuDoubleBuffer2D()
+// GpuBuffer2D functions definitions
+template <typename T>
+GpuBuffer2D<T>::GpuBuffer2D()
     : _buffer(nullptr), _sideLength(0), _bufferSize(0) {}
 
-GpuDoubleBuffer2D::GpuDoubleBuffer2D(unsigned int sideLength)
-    : _sideLength(sideLength) {
-    _bufferSize = _sideLength * _sideLength * sizeof(double);
+template <typename T>
+GpuBuffer2D<T>::GpuBuffer2D(unsigned int sideLength) : _sideLength(sideLength) {
+    _bufferSize = _sideLength * _sideLength * sizeof(T);
 
     CUDA_CALL(cudaMalloc((void**)&_buffer, _bufferSize));
 }
 
-GpuDoubleBuffer2D::~GpuDoubleBuffer2D() {
+template <typename T>
+GpuBuffer2D<T>::~GpuBuffer2D() {
     CUDA_CALL(cudaFree(_buffer));
 }
 
-double* GpuDoubleBuffer2D::data() {
+template <typename T>
+T* GpuBuffer2D<T>::data() {
     return _buffer;
 }
 
-const double* GpuDoubleBuffer2D::data() const {
+template <typename T>
+const T* GpuBuffer2D<T>::data() const {
     return _buffer;
 }
 
-unsigned int GpuDoubleBuffer2D::size() const {
+template <typename T>
+unsigned int GpuBuffer2D<T>::size() const {
     return _bufferSize;
 }
 
-unsigned int GpuDoubleBuffer2D::length() const {
+template <typename T>
+unsigned int GpuBuffer2D<T>::length() const {
     return _sideLength;
 }
 
-void GpuDoubleBuffer2D::clear() {
+template <typename T>
+void GpuBuffer2D<T>::clear() {
     CUDA_CALL(cudaMemset(_buffer, 0x0, _bufferSize));
 }
 
-void GpuDoubleBuffer2D::copyToHost(double* dst) const {
+template <typename T>
+void GpuBuffer2D<T>::copyToHost(T* dst) const {
     CUDA_CALL(cudaMemcpy(dst, _buffer, _bufferSize, cudaMemcpyDeviceToHost));
 }
 
-void GpuDoubleBuffer2D::copyFromHost(const double* src) {
+template <typename T>
+void GpuBuffer2D<T>::copyFromHost(const T* src) {
     CUDA_CALL(cudaMemcpy(_buffer, src, _bufferSize, cudaMemcpyHostToDevice));
 }
 
-void GpuDoubleBuffer2D::copyToDevice(double* dst) const {
+template <typename T>
+void GpuBuffer2D<T>::copyToDevice(T* dst) const {
     CUDA_CALL(cudaMemcpy(dst, _buffer, _bufferSize, cudaMemcpyDeviceToDevice));
 }
 
-void GpuDoubleBuffer2D::copyFromDevice(const double* src) {
+template <typename T>
+void GpuBuffer2D<T>::copyFromDevice(const T* src) {
     CUDA_CALL(cudaMemcpy(_buffer, src, _bufferSize, cudaMemcpyDeviceToDevice));
 }
 
 // GpuComplexBuffer2D functions definitions
-GpuComplexBuffer2D::GpuComplexBuffer2D()
+template <typename T>
+GpuComplexBuffer2D<T>::GpuComplexBuffer2D()
     : _buffer(nullptr), _sideLength(0), _bufferSize(0) {}
 
-GpuComplexBuffer2D::GpuComplexBuffer2D(unsigned int sideLength)
+template <typename T>
+GpuComplexBuffer2D<T>::GpuComplexBuffer2D(unsigned int sideLength)
     : _sideLength(sideLength) {
-    _bufferSize =
-        (_sideLength / 2 + 1) * _sideLength * sizeof(cufftDoubleComplex);
+    _bufferSize = (_sideLength / 2 + 1) * _sideLength * sizeof(Complex);
 
     CUDA_CALL(cudaMalloc((void**)&_buffer, _bufferSize));
 }
 
-GpuComplexBuffer2D::~GpuComplexBuffer2D() {
+template <typename T>
+GpuComplexBuffer2D<T>::~GpuComplexBuffer2D() {
     CUDA_CALL(cudaFree(_buffer));
 }
 
-cufftDoubleComplex* GpuComplexBuffer2D::data() {
+template <typename T>
+typename GpuComplexBuffer2D<T>::Complex* GpuComplexBuffer2D<T>::data() {
     return _buffer;
 }
 
-const cufftDoubleComplex* GpuComplexBuffer2D::data() const {
+template <typename T>
+const typename GpuComplexBuffer2D<T>::Complex* GpuComplexBuffer2D<T>::data()
+    const {
     return _buffer;
 }
 
-unsigned int GpuComplexBuffer2D::size() const {
+template <typename T>
+unsigned int GpuComplexBuffer2D<T>::size() const {
     return _bufferSize;
 }
 
-unsigned int GpuComplexBuffer2D::length() const {
+template <typename T>
+unsigned int GpuComplexBuffer2D<T>::length() const {
     return _sideLength;
 }
 
-void GpuComplexBuffer2D::clear() {
+template <typename T>
+void GpuComplexBuffer2D<T>::clear() {
     CUDA_CALL(cudaMemset(_buffer, 0x0, _bufferSize));
 }
 
-void GpuComplexBuffer2D::copyToHost(cufftDoubleComplex* dst) const {
+template <typename T>
+void GpuComplexBuffer2D<T>::copyToHost(Complex* dst) const {
     CUDA_CALL(cudaMemcpy(dst, _buffer, _bufferSize, cudaMemcpyDeviceToHost));
 }
 
-void GpuComplexBuffer2D::copyFromHost(const cufftDoubleComplex* src) {
+template <typename T>
+void GpuComplexBuffer2D<T>::copyFromHost(const Complex* src) {
     CUDA_CALL(cudaMemcpy(_buffer, src, _bufferSize, cudaMemcpyHostToDevice));
 }
 
-void GpuComplexBuffer2D::copyToDevice(cufftDoubleComplex* dst) const {
+template <typename T>
+void GpuComplexBuffer2D<T>::copyToDevice(Complex* dst) const {
     CUDA_CALL(cudaMemcpy(dst, _buffer, _bufferSize, cudaMemcpyDeviceToDevice));
 }
 
-void GpuComplexBuffer2D::copyFromDevice(const cufftDoubleComplex* src) {
+template <typename T>
+void GpuComplexBuffer2D<T>::copyFromDevice(const Complex* src) {
     CUDA_CALL(cudaMemcpy(_buffer, src, _bufferSize, cudaMemcpyDeviceToDevice));
 }
+
+// The solver runs in either double or float precision
+template class CpuBuffer1D<double>;
+template class CpuBuffer1D<float>;
+template class CpuBuffer2D<double>;
+template class CpuBuffer2D<float>;
+template class GpuBuffer2D<double>;
+template class GpuBuffer2D<float>;
+template class GpuComplexBuffer2D<double>;
+template class GpuComplexBuffer2D<float>;
 
 // GpuStateBuffer2D functions definitions
 

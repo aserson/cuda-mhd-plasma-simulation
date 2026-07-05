@@ -10,6 +10,7 @@ Configs::Configs(const std::filesystem::path& filePath) : _filePath(filePath) {
 
     // Simulation Parameterss
     _gridLength = getGridLength();
+    _singlePrecision = getSinglePrecision();
     _gridStep = 2. * M_PI / (_gridLength);
     _lambda = 1. / ((double)(_gridLength * _gridLength));
     _dealWN = (unsigned int)(double(_gridLength) * (getDealCoef() / 2.));
@@ -62,6 +63,8 @@ std::string Configs::ParametersPrint() const {
     output << "Simulation parameters:" << std::endl;
     output << "  Grid Lenght = " << std::setw(13) << std::left << _gridLength
            << std::endl;
+    output << "  Precision = " << std::setw(13) << std::left
+           << (_singlePrecision ? "float" : "double") << std::endl;
     output << "  End Time = " << std::setw(12) << std::left << _time
            << std::endl;
     output << std::endl;
@@ -104,6 +107,22 @@ unsigned int Configs::getGridLength() const {
     } else {
         return DefaultConfigs::defaultGridLength;
     }
+}
+
+bool Configs::getSinglePrecision() const {
+    std::string precision = DefaultConfigs::defaultPrecision;
+    if (_config["Precision"]) {
+        precision = _config["Precision"].as<std::string>();
+    }
+
+    if (precision == "float" || precision == "single" || precision == "fp32") {
+        return true;
+    }
+    if (precision != "double" && precision != "fp64") {
+        std::cerr << "Unknown Precision value \"" << precision
+                  << "\", falling back to double" << std::endl;
+    }
+    return false;
 }
 
 double Configs::getTime() const {

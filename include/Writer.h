@@ -13,10 +13,15 @@
 namespace mhd {
 class Writer {
 private:
+    // Fields are written to disk as double regardless of the solver
+    // precision; the float staging buffer holds the device data before
+    // conversion
     CpuDoubleBuffer2D _output;
+    CpuBuffer2D<float> _outputFloat;
     graphics::Painter _painter;
 
-    void save(const double* field, const std::filesystem::path& filePath);
+    template <typename T>
+    void save(const T* field, const std::filesystem::path& filePath);
     void clear();
 
     const std::filesystem::path _outputPath;
@@ -40,7 +45,8 @@ public:
     Writer(const std::filesystem::path& outputPath, const mhd::Configs& configs,
            const std::filesystem::path& resPath);
 
-    bool saveData(mhd::Helper& writer, opengl::Creater& creater);
+    template <typename T>
+    bool saveData(mhd::Helper<T>& helper, opengl::Creater& creater);
 
     void saveCurrents(const Currents& currents,
                       const std::filesystem::path& filePath);

@@ -1,20 +1,21 @@
-﻿#pragma once
+#pragma once
 
 #include "../Configs.h"
 #include "Buffers.cuh"
 #include "Helper.cuh"
 
 namespace mhd {
-class Solver : public Helper {
+template <typename T>
+class Solver : public Helper<T> {
 private:
     // Two-step time integration scheme captured into a CUDA graph
     cudaGraph_t _graph;
     cudaGraphExec_t _graphExec;
     bool _graphCreated;
 
-    void calcDerivatives(const GpuComplexBuffer2D& field,
-                         GpuDoubleBuffer2D& derivativeX,
-                         GpuDoubleBuffer2D& derivativeY);
+    void calcDerivatives(const GpuComplexBuffer2D<T>& field,
+                         GpuBuffer2D<T>& derivativeX,
+                         GpuBuffer2D<T>& derivativeY);
 
     void doStep();
 

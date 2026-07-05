@@ -25,12 +25,14 @@ private:
 
     bool readColorMap(const std::string& colorMapName,
                       const std::filesystem::path& resPath);
-    float findAmplitude(const mhd::GpuDoubleBuffer2D& src);
+    template <typename T>
+    float findAmplitude(const mhd::GpuBuffer2D<T>& src);
 
 public:
     Painter(const mhd::Configs& configs, const std::filesystem::path& resPath);
 
-    void doubleToPixels(const mhd::GpuDoubleBuffer2D& src);
+    template <typename T>
+    void doubleToPixels(const mhd::GpuBuffer2D<T>& src);
 
     const CpuPixelBuffer2D& getPixels() const { return _cpuPixels; }
     unsigned int getLength() const { return _length; }

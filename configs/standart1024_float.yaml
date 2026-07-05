@@ -1,0 +1,5 @@
+GridLength : 1024
+Precision : float
+Time : 10.
+OutputStep : 0.01
+ShowGraphics : false

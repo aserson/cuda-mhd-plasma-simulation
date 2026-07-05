@@ -28,6 +28,7 @@ private:
     struct DefaultConfigs {
         // Simulation Parameters
         static const unsigned int defaultGridLength = 1024;
+        static constexpr char defaultPrecision[] = "double";
         static constexpr double defaultTime = 5.;
         static constexpr double defaultDealCoef = 2. / 3.;
         static constexpr double defaultMaxTimeStep = 0.01;
@@ -74,6 +75,7 @@ private:
 
     // Simulation Parameters
     unsigned int getGridLength() const;
+    bool getSinglePrecision() const;
     double getDealCoef() const;
     double getTime() const;
     double getMaxTimeStep() const;
@@ -122,6 +124,7 @@ public:
 
     // Simulation Parameters
     unsigned int _gridLength;
+    bool _singlePrecision;
     double _gridStep;
     double _lambda;
     unsigned int _dealWN;
