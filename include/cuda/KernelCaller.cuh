@@ -66,6 +66,9 @@ public:
     void callLinearFloat(Kernel kernel, TArgs... args);
 
     template <typename Kernel, typename... TArgs>
+    void callFinal(Kernel kernel, TArgs... args);
+
+    template <typename Kernel, typename... TArgs>
     void callKernel(Kernel kernel, dim3 dimBlock, dim3 dimGrid,
                     size_t sharedSize, TArgs... args);
 };
@@ -105,6 +108,15 @@ void KernelCaller::callLinearFloat(Kernel kernel, TArgs... args) {
     dim3 dimGrid = dim3(_dimGridLinear, 1, 1);
     dim3 dimBlock = dim3(_dimBlockLinear, 1, 1);
     size_t sharedSize = _sharedSizeFloat;
+
+    callKernel(kernel, dimBlock, dimGrid, sharedSize, args...);
+}
+
+template <typename Kernel, typename... TArgs>
+void KernelCaller::callFinal(Kernel kernel, TArgs... args) {
+    dim3 dimGrid = dim3(1, 1, 1);
+    dim3 dimBlock = dim3(_dimBlockLinear, 1, 1);
+    size_t sharedSize = _sharedSize;
 
     callKernel(kernel, dimBlock, dimGrid, sharedSize, args...);
 }

@@ -33,13 +33,12 @@ protected:
         GpuDoubleBuffer2D _doubleBufferA, _doubleBufferB, _doubleBufferC;
 
         // Auxiliary Fields: Temporary CPU
-        CpuDoubleBuffer1D _cpuLinearBufferX;
-        CpuDoubleBuffer1D _cpuLinearBufferY;
+        CpuDoubleBuffer1D _cpuReducedValue;
 
         // Output buffer: Temporary CPU
         CpuDoubleBuffer2D _output;
 
-        Fields(unsigned int gridLength, unsigned int linearLength)
+        Fields(unsigned int gridLength)
             : _vorticity(gridLength),
               _stream(gridLength),
               _current(gridLength),
@@ -51,8 +50,7 @@ protected:
               _doubleBufferA(gridLength),
               _doubleBufferB(gridLength),
               _doubleBufferC(gridLength),
-              _cpuLinearBufferX(linearLength),
-              _cpuLinearBufferY(linearLength),
+              _cpuReducedValue(1),
               _output(gridLength) {}
     } _fields;
 
@@ -94,8 +92,7 @@ public:
     GpuDoubleBuffer2D& DoubleBufferA();
     GpuDoubleBuffer2D& DoubleBufferB();
     GpuDoubleBuffer2D& DoubleBufferC();
-    CpuDoubleBuffer1D& CpuLinearBufferX();
-    CpuDoubleBuffer1D& CpuLinearBufferY();
+    CpuDoubleBuffer1D& CpuReducedValue();
     CpuDoubleBuffer2D& Output();
 
     bool shouldContinue();

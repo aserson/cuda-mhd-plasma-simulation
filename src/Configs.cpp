@@ -16,6 +16,9 @@ Configs::Configs(const std::filesystem::path& filePath) : _filePath(filePath) {
     _time = getTime();
     _cfl = getCFL();
     _maxTimeStep = getMaxTimeStep();
+    _timeStepUpdateInterval = getTimeStepUpdateInterval();
+    if (_timeStepUpdateInterval == 0)
+        _timeStepUpdateInterval = 1;
 
     // Equation Coefficients
     _nu = getNu();
@@ -132,6 +135,14 @@ double Configs::getCFL() const {
         return _config["CFL"].as<double>();
     } else {
         return DefaultConfigs::defaultCFL;
+    }
+}
+
+unsigned int Configs::getTimeStepUpdateInterval() const {
+    if (_config["TimeStepUpdateInterval"]) {
+        return _config["TimeStepUpdateInterval"].as<unsigned int>();
+    } else {
+        return DefaultConfigs::defaultTimeStepUpdateInterval;
     }
 }
 

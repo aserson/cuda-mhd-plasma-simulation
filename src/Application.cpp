@@ -178,8 +178,7 @@ int main(int argc, char* argv[]) {
         // Saving fields from previous timelayer
         solver.saveOldFields();
 
-        // Initial Energy and Time Step
-        solver.updateEnergies();
+        // Initial Time Step
         solver.updateTimeStep();
 
         std::cout << std::endl
@@ -218,8 +217,7 @@ int main(int argc, char* argv[]) {
             // Saving fields from previous timelayer
             solver.saveOldFields();
 
-            // Update Parameters (Energy and Time Step)
-            solver.updateEnergies();
+            // Update Time Step (energies are updated by the writer on output)
             solver.updateTimeStep();
             solver.timeStep();
 

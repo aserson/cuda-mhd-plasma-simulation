@@ -32,6 +32,7 @@ private:
         static constexpr double defaultDealCoef = 2. / 3.;
         static constexpr double defaultMaxTimeStep = 0.01;
         static constexpr double defaultCFL = 0.2;
+        static const unsigned int defaultTimeStepUpdateInterval = 10;
 
         // Equation Coefficients
         static constexpr double defaultNu = 1.e-4;
@@ -77,6 +78,7 @@ private:
     double getTime() const;
     double getMaxTimeStep() const;
     double getCFL() const;
+    unsigned int getTimeStepUpdateInterval() const;
 
     // Equation Coefficients
     double getNu();
@@ -126,6 +128,7 @@ public:
     double _time;
     double _cfl;
     double _maxTimeStep;
+    unsigned int _timeStepUpdateInterval;
 
     // Equation Coefficients
     double _nu;

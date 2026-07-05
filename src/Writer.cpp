@@ -46,6 +46,12 @@ Writer::Writer(const std::filesystem::path& outputPath,
                 configs._showGraphics} {}
 
 bool Writer::saveData(mhd::Helper& helper, opengl::Creater& creater) {
+    // Energies are only consumed by the output below (shouldWrite implies
+    // shouldPaint), so they are not computed on the remaining time steps
+    if (shouldPaint(helper._currents.time)) {
+        helper.updateEnergies();
+    }
+
     if (shouldWrite(helper._currents.time)) {
         if (_settings.saveData) {
             std::filesystem::path currentPath =

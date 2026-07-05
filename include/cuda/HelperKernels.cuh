@@ -161,6 +161,60 @@ __global__ static void EnergyTransform_kernel(double* velocityX,
         2.;
 }
 
+// Single-block kernel: reduces the per-block partial maxima to output[0].
+// Assumes non-negative input (partials of fabs).
+__global__ static void MaxFinal_kernel(const double* input, unsigned int length,
+                                       double* output) {
+    int tidx = threadIdx.x;
+
+    extern __shared__ double sharedBuffer[];
+
+    double value = 0.0;
+    for (unsigned int i = tidx; i < length; i += blockDim.x) {
+        value = fmax(value, input[i]);
+    }
+    sharedBuffer[tidx] = value;
+
+    __syncthreads();
+
+    for (unsigned int i = blockDim.x / 2; i > 0; i >>= 1) {
+        if (tidx < i) {
+            sharedBuffer[tidx] =
+                fmax(sharedBuffer[tidx], sharedBuffer[tidx + i]);
+        }
+        __syncthreads();
+    }
+
+    if (tidx == 0)
+        output[0] = sharedBuffer[0];
+}
+
+// Single-block kernel: reduces the per-block partial sums to output[0]
+__global__ static void SumFinal_kernel(const double* input, unsigned int length,
+                                       double* output) {
+    int tidx = threadIdx.x;
+
+    extern __shared__ double sharedBuffer[];
+
+    double value = 0.0;
+    for (unsigned int i = tidx; i < length; i += blockDim.x) {
+        value += input[i];
+    }
+    sharedBuffer[tidx] = value;
+
+    __syncthreads();
+
+    for (unsigned int i = blockDim.x / 2; i > 0; i >>= 1) {
+        if (tidx < i) {
+            sharedBuffer[tidx] = sharedBuffer[tidx] + sharedBuffer[tidx + i];
+        }
+        __syncthreads();
+    }
+
+    if (tidx == 0)
+        output[0] = sharedBuffer[0];
+}
+
 __global__ static void EnergyIntegrate_kernel(double* field, double* sum) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int tidx = threadIdx.x;

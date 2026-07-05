@@ -13,22 +13,22 @@ double Helper::maxRotorAmplitude(const GpuComplexBuffer2D& field) {
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
     _caller.callLinear(Max_kernel, DoubleBufferA().data(),
                        DoubleBufferB().data());
-    CpuLinearBufferX().copyFromDevice(DoubleBufferB().data());
+    _caller.callFinal(MaxFinal_kernel, DoubleBufferB().data(),
+                      _configs._linearLength, DoubleBufferC().data());
+    CpuReducedValue().copyFromDevice(DoubleBufferC().data());
+    double maxX = CpuReducedValue()[0];
 
     _caller.call(DiffByY_kernel, field.data(), _configs._gridLength,
                  ComplexBuffer().data());
     _transformator.inverse(ComplexBuffer(), DoubleBufferA());
     _caller.callLinear(Max_kernel, DoubleBufferA().data(),
                        DoubleBufferB().data());
-    CpuLinearBufferY().copyFromDevice(DoubleBufferB().data());
+    _caller.callFinal(MaxFinal_kernel, DoubleBufferB().data(),
+                      _configs._linearLength, DoubleBufferC().data());
+    CpuReducedValue().copyFromDevice(DoubleBufferC().data());
+    double maxY = CpuReducedValue()[0];
 
-    double v = 0.;
-    for (unsigned int i = 0; i < _configs._linearLength; i++) {
-        v = (fabs(CpuLinearBufferX()[i]) > v) ? fabs(CpuLinearBufferX()[i]) : v;
-        v = (fabs(CpuLinearBufferY()[i]) > v) ? fabs(CpuLinearBufferY()[i]) : v;
-    }
-
-    return _configs._lambda * v;
+    return _configs._lambda * fmax(maxX, maxY);
 }
 
 double Helper::calcEnergy(const GpuComplexBuffer2D& field) {
@@ -45,15 +45,12 @@ double Helper::calcEnergy(const GpuComplexBuffer2D& field) {
                      _configs._gridLength, _configs._lambda);
     _caller.callLinear(EnergyIntegrate_kernel, DoubleBufferC().data(),
                        DoubleBufferA().data());
+    _caller.callFinal(SumFinal_kernel, DoubleBufferA().data(),
+                      _configs._linearLength, DoubleBufferB().data());
 
-    _fields._cpuLinearBufferX.copyFromDevice(DoubleBufferA().data());
+    CpuReducedValue().copyFromDevice(DoubleBufferB().data());
 
-    double e = 0.0;
-    for (unsigned int i = 0; i < _configs._linearLength; i++) {
-        e += CpuLinearBufferX()[i];
-    }
-
-    return (4. * M_PI * M_PI) * _configs._lambda * e;
+    return (4. * M_PI * M_PI) * _configs._lambda * CpuReducedValue()[0];
 }
 
 void Helper::normallize(GpuComplexBuffer2D& field, double ratio) {
@@ -64,7 +61,7 @@ void Helper::normallize(GpuComplexBuffer2D& field, double ratio) {
 Helper::Helper(const Configs& configs)
     : _configs(configs),
       _transformator(configs._gridLength),
-      _fields(configs._gridLength, configs._linearLength),
+      _fields(configs._gridLength),
       _caller(configs._gridLength, configs._dimBlockX, configs._dimBlockY,
               configs._sharedLength) {}
 
@@ -140,12 +137,8 @@ GpuDoubleBuffer2D& Helper::DoubleBufferC() {
     return _fields._doubleBufferC;
 }
 
-CpuDoubleBuffer1D& Helper::CpuLinearBufferX() {
-    return _fields._cpuLinearBufferX;
-}
-
-CpuDoubleBuffer1D& Helper::CpuLinearBufferY() {
-    return _fields._cpuLinearBufferY;
+CpuDoubleBuffer1D& Helper::CpuReducedValue() {
+    return _fields._cpuReducedValue;
 }
 
 CpuDoubleBuffer2D& Helper::Output() {
@@ -188,6 +181,9 @@ void Helper::saveOldFields() {
 }
 
 void Helper::updateTimeStep() {
+    if (_currents.stepNumber % _configs._timeStepUpdateInterval != 0)
+        return;
+
     double cfl = _configs._cfl;
     double gridStep = _configs._gridStep;
     double maxTimeStep = _configs._maxTimeStep;
