@@ -27,9 +27,11 @@ Creater::Creater(const mhd::Configs& configs,
         if (glewInit() != GLEW_OK)
             std::cout << "Error!" << std::endl;
 
-        _vb = new VertexBuffer(_positions.data(), _positions.size());
+        _vb = new VertexBuffer(_positions.data(),
+                               static_cast<unsigned int>(_positions.size()));
         _va = new VertexArray();
-        _ib = new IndexBuffer(_indices.data(), _indices.size());
+        _ib = new IndexBuffer(_indices.data(),
+                              static_cast<unsigned int>(_indices.size()));
 
         CreateWindowData();
 

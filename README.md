@@ -21,27 +21,31 @@ The numerical model is implemented in the C++ programming language and used the 
 This is an example of how you may set up the project locally. To get a local copy up and running follow these simple example steps.
 
 ### Prerequisites
-* CUDA Toolkit 12.6 and Nvidia Drivers
+* CUDA Toolkit 12.6 or newer and Nvidia Drivers
 * OpenGL API 
-* CMake 3.14
+* CMake 3.27 or newer
 
 ### Installation
-Navigate into the source directory, create build folder and run CMake:
+Navigate into the source directory and configure the project into the `build` folder:
 ```sh
-mkdir build
-cd build
-cmake ..
+cmake -S . -B build
 ```
-Build the project in current folder
+By default the code is compiled for the GPU of the current machine. To target a specific GPU architecture pass `-DCMAKE_CUDA_ARCHITECTURES=<arch>` (for example `86`).
+
+Build the project:
 ```sh
-make
+cmake --build build --config Release
 ```
 
 ### Usage
 Navigate into the binary directory and run the simulation:
 ```sh
-cd ..\bin
+cd build\bin
 .\simulation
+```
+Optionally pass the name of a configuration file from the `configs` folder (no full path needed):
+```sh
+.\simulation fluid1024.yaml
 ```
 
 ## Screen Recording of default simulation behavior

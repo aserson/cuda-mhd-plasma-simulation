@@ -49,7 +49,7 @@ std::filesystem::path FindResPath(std::filesystem::path& exePath) {
 std::filesystem::path CreateOutputDir(const mhd::Configs& configs,
                                       const std::filesystem::path& parantPath) {
     if (exists(parantPath) == false)
-        create_directory(parantPath);
+        create_directories(parantPath);
 
     tm timeInfo;
     time_t rawTime;
@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
     mhd::Configs configs(configFile);
 
     const std::filesystem::path outputPath =
-        CreateOutputDir(configs, projectPath / "bin" / "outputs");
+        CreateOutputDir(configs, projectPath / "outputs");
 
     std::cout << "Output directory: " << outputPath.filename().string()
               << std::endl
