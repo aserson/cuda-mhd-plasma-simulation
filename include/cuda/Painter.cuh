@@ -20,7 +20,9 @@ private:
     CpuPixelBuffer2D _cpuPixels;
     GpuPixelBuffer2D _gpuPixels;
 
-    CpuFloatBuffer _cpuFloat;
+    // The amplitude reduction finishes on the GPU; only the final value
+    // is copied to the host
+    CpuFloatBuffer _cpuAmplitude;
     GpuFloatBuffer _gpuFloat;
 
     bool readColorMap(const std::string& colorMapName,

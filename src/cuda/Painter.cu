@@ -56,7 +56,7 @@ Painter::Painter(const mhd::Configs& configs,
       _gpuPixels(configs._gridLength),
       _caller(configs._gridLength, configs._dimBlockX, configs._dimBlockY,
               configs._sharedLength),
-      _cpuFloat(configs._linearLength),
+      _cpuAmplitude(1),
       _gpuFloat(configs._linearLength) {
 
     if (readColorMap(configs._colorMap, resPath))
@@ -96,14 +96,13 @@ bool Painter::readColorMap(const std::string& colorMapName,
 template <typename T>
 float Painter::findAmplitude(const mhd::GpuBuffer2D<T>& src) {
     _caller.callLinearFloat(Max_kernel<T>, src.data(), _gpuFloat.data());
-    _cpuFloat.copyFromDevice(_gpuFloat.data());
+    // Writing the result over the partials is safe: the single block reads
+    // all of them before thread 0 stores element 0
+    _caller.callFinal(mhd::MaxFinal_kernel<float>, _gpuFloat.data(),
+                      _gpuFloat.length(), _gpuFloat.data());
+    _cpuAmplitude.copyFromDevice(_gpuFloat.data());
 
-    float v = 0.f;
-    for (unsigned int i = 0; i < _cpuFloat.length(); i++) {
-        v = (fabs(_cpuFloat[i]) > v) ? fabs(_cpuFloat[i]) : v;
-    }
-
-    return v;
+    return _cpuAmplitude[0];
 }
 
 template <typename T>
