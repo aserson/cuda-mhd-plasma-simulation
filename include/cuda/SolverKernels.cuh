@@ -6,10 +6,11 @@
 namespace mhd {
 
 // Jacobian Kernels
-__global__ void DealaliasingDiffByX_kernel(const cufftDoubleComplex* input,
-                                           cufftDoubleComplex* output,
-                                           unsigned int gridLength,
-                                           unsigned int dealWN) {
+__global__ void DealaliasingDiffXY_kernel(const cufftDoubleComplex* input,
+                                          cufftDoubleComplex* outputX,
+                                          cufftDoubleComplex* outputY,
+                                          unsigned int gridLength,
+                                          unsigned int dealWN) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
@@ -18,41 +19,22 @@ __global__ void DealaliasingDiffByX_kernel(const cufftDoubleComplex* input,
         x = x - gridLength;
 
     if ((abs(x) < dealWN) && (abs(y) < dealWN)) {
-        output[idx].x = -(double)x * input[idx].y;
-        output[idx].y = (double)x * input[idx].x;
+        outputX[idx].x = -(double)x * input[idx].y;
+        outputX[idx].y = (double)x * input[idx].x;
+        outputY[idx].x = -(double)y * input[idx].y;
+        outputY[idx].y = (double)y * input[idx].x;
     } else {
-        output[idx].x = 0.0;
-        output[idx].y = 0.0;
+        outputX[idx].x = 0.0;
+        outputX[idx].y = 0.0;
+        outputY[idx].x = 0.0;
+        outputY[idx].y = 0.0;
     }
 
     if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
-        output[idx + 1].x = 0.0;
-        output[idx + 1].y = 0.0;
-    }
-}
-
-__global__ void DealaliasingDiffByY_kernel(const cufftDoubleComplex* input,
-                                           cufftDoubleComplex* output,
-                                           unsigned int gridLength,
-                                           unsigned int dealWN) {
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx = (gridLength / 2 + 1) * x + y;
-
-    if (x > gridLength / 2)
-        x = x - gridLength;
-
-    if ((abs(x) < dealWN) && (abs(y) < dealWN)) {
-        output[idx].x = -(double)y * input[idx].y;
-        output[idx].y = (double)y * input[idx].x;
-    } else {
-        output[idx].x = 0.0;
-        output[idx].y = 0.0;
-    }
-
-    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
-        output[idx + 1].x = 0.0;
-        output[idx + 1].y = 0.0;
+        outputX[idx + 1].x = 0.0;
+        outputX[idx + 1].y = 0.0;
+        outputY[idx + 1].x = 0.0;
+        outputY[idx + 1].y = 0.0;
     }
 }
 
@@ -70,32 +52,13 @@ __global__ void Jacobian_kernel(const double* leftX, const double* rightY,
                   lambda * lambda;
 }
 
-__global__ void Dealaliasing_kernel(cufftDoubleComplex* output,
-                                    unsigned int gridLength,
-                                    unsigned int dealWN) {
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx = (gridLength / 2 + 1) * x + y;
-
-    if (x > gridLength / 2)
-        x = x - gridLength;
-
-    if ((abs(x) >= dealWN) || (abs(y) >= dealWN)) {
-        output[idx].x = 0.0;
-        output[idx].y = 0.0;
-    }
-
-    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
-        output[idx + 1].x = 0.0;
-        output[idx + 1].y = 0.0;
-    }
-}
-
 // Equation Kernels
+// Dealiasing of the Jacobian spectra is folded in via the dealWN window:
+// out-of-window Jacobian modes are never read anywhere else
 __global__ void KineticRigthPart_kernel(
     const cufftDoubleComplex* w, const cufftDoubleComplex* jacobianFirst,
     const cufftDoubleComplex* jacobianSecond, cufftDoubleComplex* rightPart,
-    unsigned int gridLength, double nu) {
+    unsigned int gridLength, double nu, unsigned int dealWN) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
@@ -104,16 +67,22 @@ __global__ void KineticRigthPart_kernel(
         x = x - gridLength;
     double value = (double)(x * x + y * y);
 
-    rightPart[idx].x =
-        jacobianFirst[idx].x + jacobianSecond[idx].x - nu * value * w[idx].x;
-    rightPart[idx].y =
-        jacobianFirst[idx].y + jacobianSecond[idx].y - nu * value * w[idx].y;
+    if ((abs(x) < dealWN) && (abs(y) < dealWN)) {
+        rightPart[idx].x = jacobianFirst[idx].x + jacobianSecond[idx].x -
+                           nu * value * w[idx].x;
+        rightPart[idx].y = jacobianFirst[idx].y + jacobianSecond[idx].y -
+                           nu * value * w[idx].y;
+    } else {
+        rightPart[idx].x = -nu * value * w[idx].x;
+        rightPart[idx].y = -nu * value * w[idx].y;
+    }
 }
 
-__global__ void ThirdRigthPart_kernel(cufftDoubleComplex* a,
-                                      cufftDoubleComplex* jacobian,
+__global__ void ThirdRigthPart_kernel(const cufftDoubleComplex* a,
+                                      const cufftDoubleComplex* jacobian,
                                       cufftDoubleComplex* rightPart,
-                                      unsigned int gridLength, double eta) {
+                                      unsigned int gridLength, double eta,
+                                      unsigned int dealWN) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
@@ -122,8 +91,13 @@ __global__ void ThirdRigthPart_kernel(cufftDoubleComplex* a,
         x = x - gridLength;
     double value = (double)(x * x + y * y);
 
-    rightPart[idx].x = jacobian[idx].x - eta * value * a[idx].x;
-    rightPart[idx].y = jacobian[idx].y - eta * value * a[idx].y;
+    if ((abs(x) < dealWN) && (abs(y) < dealWN)) {
+        rightPart[idx].x = jacobian[idx].x - eta * value * a[idx].x;
+        rightPart[idx].y = jacobian[idx].y - eta * value * a[idx].y;
+    } else {
+        rightPart[idx].x = -eta * value * a[idx].x;
+        rightPart[idx].y = -eta * value * a[idx].y;
+    }
 }
 
 // Time Scheme Kernels

@@ -7,13 +7,16 @@
 namespace mhd {
 class Solver : public Helper {
 private:
-    void calcJacobian(const GpuComplexBuffer2D& leftField,
-                      const GpuComplexBuffer2D& rightField,
-                      GpuComplexBuffer2D& jacobian);
+    void calcDerivatives(const GpuComplexBuffer2D& field,
+                         GpuDoubleBuffer2D& derivativeX,
+                         GpuDoubleBuffer2D& derivativeY);
 
 public:
     Solver(const mhd::Configs& configs);
 
+    // Computes the kinetic right part and prepares the Jacobian for the
+    // magnetic right part from the same derivative fields, so it must be
+    // called before calcMagneticRightPart
     void calcKineticRigthPart();
     void calcMagneticRightPart();
 

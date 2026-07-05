@@ -31,7 +31,8 @@ protected:
         // Auxiliary Fields: Temporary GPU
         GpuComplexBuffer2D _complexBuffer, _complexBufferB;
         GpuDoubleBuffer2D _doubleBufferA, _doubleBufferB, _doubleBufferC,
-            _doubleBufferD;
+            _doubleBufferD, _doubleBufferE, _doubleBufferF, _doubleBufferG,
+            _doubleBufferH;
 
         // Auxiliary Fields: Temporary CPU
         CpuDoubleBuffer1D _cpuReducedValue;
@@ -53,6 +54,10 @@ protected:
               _doubleBufferB(gridLength),
               _doubleBufferC(gridLength),
               _doubleBufferD(gridLength),
+              _doubleBufferE(gridLength),
+              _doubleBufferF(gridLength),
+              _doubleBufferG(gridLength),
+              _doubleBufferH(gridLength),
               _cpuReducedValue(1),
               _output(gridLength) {}
     } _fields;
@@ -98,6 +103,10 @@ public:
     GpuDoubleBuffer2D& DoubleBufferB();
     GpuDoubleBuffer2D& DoubleBufferC();
     GpuDoubleBuffer2D& DoubleBufferD();
+    GpuDoubleBuffer2D& DoubleBufferE();
+    GpuDoubleBuffer2D& DoubleBufferF();
+    GpuDoubleBuffer2D& DoubleBufferG();
+    GpuDoubleBuffer2D& DoubleBufferH();
     CpuDoubleBuffer1D& CpuReducedValue();
     CpuDoubleBuffer2D& Output();
 

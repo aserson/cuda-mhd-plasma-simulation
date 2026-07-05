@@ -4,50 +4,58 @@
 
 namespace mhd {
 
-void Solver::calcJacobian(const GpuComplexBuffer2D& leftField,
-                          const GpuComplexBuffer2D& rightField,
-                          GpuComplexBuffer2D& jacobian) {
-    _caller.call(DealaliasingDiffByX_kernel, leftField.data(), jacobian.data(),
+void Solver::calcDerivatives(const GpuComplexBuffer2D& field,
+                             GpuDoubleBuffer2D& derivativeX,
+                             GpuDoubleBuffer2D& derivativeY) {
+    _caller.call(DealaliasingDiffXY_kernel, field.data(),
+                 ComplexBuffer().data(), ComplexBufferB().data(),
                  _configs._gridLength, _configs._dealWN);
-    _transformator.inverse(jacobian, DoubleBufferA());
-
-    _caller.call(DealaliasingDiffByY_kernel, rightField.data(),
-                 jacobian.data(), _configs._gridLength, _configs._dealWN);
-    _transformator.inverse(jacobian, DoubleBufferB());
-
-    _caller.call(DealaliasingDiffByY_kernel, leftField.data(), jacobian.data(),
-                 _configs._gridLength, _configs._dealWN);
-    _transformator.inverse(jacobian, DoubleBufferC());
-
-    _caller.call(DealaliasingDiffByX_kernel, rightField.data(),
-                 jacobian.data(), _configs._gridLength, _configs._dealWN);
-    _transformator.inverse(jacobian, DoubleBufferD());
-
-    _caller.callFull(Jacobian_kernel, DoubleBufferA().data(),
-                     DoubleBufferB().data(), DoubleBufferC().data(),
-                     DoubleBufferD().data(), DoubleBufferA().data(),
-                     _configs._gridLength, _configs._lambda);
-
-    _transformator.forward(DoubleBufferA(), jacobian);
-    _caller.call(Dealaliasing_kernel, jacobian.data(), _configs._gridLength,
-                 _configs._dealWN);
+    _transformator.inverse(ComplexBuffer(), derivativeX);
+    _transformator.inverse(ComplexBufferB(), derivativeY);
 }
 
 Solver::Solver(const mhd::Configs& configs) : Helper(configs) {}
 
 void Solver::calcKineticRigthPart() {
-    calcJacobian(Stream(), Vorticity(), ComplexBuffer());
-    calcJacobian(Potential(), Current(), ComplexBufferB());
+    calcDerivatives(Stream(), DoubleBufferA(), DoubleBufferB());
+    calcDerivatives(Vorticity(), DoubleBufferC(), DoubleBufferD());
+    calcDerivatives(Potential(), DoubleBufferE(), DoubleBufferF());
+    calcDerivatives(Current(), DoubleBufferG(), DoubleBufferH());
+
+    // J(stream, vorticity)
+    _caller.callFull(Jacobian_kernel, DoubleBufferA().data(),
+                     DoubleBufferD().data(), DoubleBufferB().data(),
+                     DoubleBufferC().data(), DoubleBufferC().data(),
+                     _configs._gridLength, _configs._lambda);
+    _transformator.forward(DoubleBufferC(), ComplexBuffer());
+
+    // J(potential, current)
+    _caller.callFull(Jacobian_kernel, DoubleBufferE().data(),
+                     DoubleBufferH().data(), DoubleBufferF().data(),
+                     DoubleBufferG().data(), DoubleBufferG().data(),
+                     _configs._gridLength, _configs._lambda);
+    _transformator.forward(DoubleBufferG(), ComplexBufferB());
+
     _caller.call(KineticRigthPart_kernel, Vorticity().data(),
                  ComplexBuffer().data(), ComplexBufferB().data(),
-                 RightPart().data(), _configs._gridLength, _configs._nu);
+                 RightPart().data(), _configs._gridLength, _configs._nu,
+                 _configs._dealWN);
+
+    // J(stream, potential) for the magnetic right part: reuses the stream
+    // and potential derivatives computed above
+    _caller.callFull(Jacobian_kernel, DoubleBufferA().data(),
+                     DoubleBufferF().data(), DoubleBufferB().data(),
+                     DoubleBufferE().data(), DoubleBufferA().data(),
+                     _configs._gridLength, _configs._lambda);
+    _transformator.forward(DoubleBufferA(), ComplexBuffer());
 }
 
 void Solver::calcMagneticRightPart() {
-    calcJacobian(Stream(), Potential(), ComplexBuffer());
+    // The Jacobian was prepared by calcKineticRigthPart; the stream and
+    // potential it was built from are unchanged since then
     _caller.call(ThirdRigthPart_kernel, Potential().data(),
                  ComplexBuffer().data(), RightPart().data(),
-                 _configs._gridLength, _configs._eta);
+                 _configs._gridLength, _configs._eta, _configs._dealWN);
 }
 
 void Solver::timeSchemeKin(double weight) {

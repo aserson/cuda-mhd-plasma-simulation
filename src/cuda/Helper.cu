@@ -145,6 +145,22 @@ GpuDoubleBuffer2D& Helper::DoubleBufferD() {
     return _fields._doubleBufferD;
 }
 
+GpuDoubleBuffer2D& Helper::DoubleBufferE() {
+    return _fields._doubleBufferE;
+}
+
+GpuDoubleBuffer2D& Helper::DoubleBufferF() {
+    return _fields._doubleBufferF;
+}
+
+GpuDoubleBuffer2D& Helper::DoubleBufferG() {
+    return _fields._doubleBufferG;
+}
+
+GpuDoubleBuffer2D& Helper::DoubleBufferH() {
+    return _fields._doubleBufferH;
+}
+
 CpuDoubleBuffer1D& Helper::CpuReducedValue() {
     return _fields._cpuReducedValue;
 }
