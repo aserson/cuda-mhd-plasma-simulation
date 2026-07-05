@@ -101,17 +101,19 @@ __global__ void ThirdRigthPart_kernel(const cufftDoubleComplex* a,
 }
 
 // Time Scheme Kernels
+// The time step is read from device memory so that the kernels can be
+// captured into a CUDA graph while dt changes between launches
 __global__ void TimeScheme_kernel(cufftDoubleComplex* field,
                                   const cufftDoubleComplex* oldField,
                                   const cufftDoubleComplex* rightPart,
-                                  unsigned int gridLength, double dt,
+                                  unsigned int gridLength, const double* dt,
                                   double weight = 1.0) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
-    field[idx].x = oldField[idx].x + weight * rightPart[idx].x * dt;
-    field[idx].y = oldField[idx].y + weight * rightPart[idx].y * dt;
+    field[idx].x = oldField[idx].x + weight * rightPart[idx].x * dt[0];
+    field[idx].y = oldField[idx].y + weight * rightPart[idx].y * dt[0];
 }
 
 // Final integration stage: also stores the new value as the old field for
@@ -119,15 +121,15 @@ __global__ void TimeScheme_kernel(cufftDoubleComplex* field,
 __global__ void TimeSchemeFinal_kernel(cufftDoubleComplex* field,
                                        cufftDoubleComplex* oldField,
                                        const cufftDoubleComplex* rightPart,
-                                       unsigned int gridLength, double dt,
-                                       double weight = 1.0) {
+                                       unsigned int gridLength,
+                                       const double* dt, double weight = 1.0) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
 
     cufftDoubleComplex value;
-    value.x = oldField[idx].x + weight * rightPart[idx].x * dt;
-    value.y = oldField[idx].y + weight * rightPart[idx].y * dt;
+    value.x = oldField[idx].x + weight * rightPart[idx].x * dt[0];
+    value.y = oldField[idx].y + weight * rightPart[idx].y * dt[0];
 
     field[idx] = value;
     oldField[idx] = value;

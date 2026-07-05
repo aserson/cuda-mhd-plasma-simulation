@@ -24,6 +24,11 @@ FastFourierTransformator::~FastFourierTransformator() {
     CUFFT_CALL(cufftDestroy(planZ2D));
 }
 
+void FastFourierTransformator::setStream(cudaStream_t stream) {
+    CUFFT_CALL(cufftSetStream(planD2Z, stream));
+    CUFFT_CALL(cufftSetStream(planZ2D, stream));
+}
+
 void FastFourierTransformator::forwardFFT(double* input,
                                           cufftDoubleComplex* output) const {
     CUFFT_CALL(cufftExecD2Z(planD2Z, input, output));

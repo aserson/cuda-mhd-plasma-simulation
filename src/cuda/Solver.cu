@@ -14,7 +14,57 @@ void Solver::calcDerivatives(const GpuComplexBuffer2D& field,
     _transformator.inverse(ComplexBufferB(), derivativeY);
 }
 
-Solver::Solver(const mhd::Configs& configs) : Helper(configs) {}
+Solver::Solver(const mhd::Configs& configs)
+    : Helper(configs),
+      _graph(nullptr),
+      _graphExec(nullptr),
+      _graphCreated(false) {}
+
+Solver::~Solver() {
+    if (_graphCreated) {
+        cudaGraphExecDestroy(_graphExec);
+        cudaGraphDestroy(_graph);
+    }
+}
+
+void Solver::doStep() {
+    // First step
+    calcKineticRigthPart();
+    timeSchemeKin();
+
+    calcMagneticRightPart();
+    timeSchemeMag();
+
+    updateStreamCurrent();
+
+    // Second step (the final time scheme also saves the fields as the
+    // previous timelayer)
+    calcKineticRigthPart();
+    timeSchemeKinFinal();
+
+    calcMagneticRightPart();
+    timeSchemeMagFinal();
+
+    updateStreamCurrent();
+}
+
+void Solver::step() {
+#ifdef NDEBUG
+    if (!_graphCreated) {
+        CUDA_CALL(cudaStreamBeginCapture(_caller.stream(),
+                                         cudaStreamCaptureModeGlobal));
+        doStep();
+        CUDA_CALL(cudaStreamEndCapture(_caller.stream(), &_graph));
+        CUDA_CALL(cudaGraphInstantiate(&_graphExec, _graph, 0));
+        _graphCreated = true;
+    }
+    CUDA_CALL(cudaGraphLaunch(_graphExec, _caller.stream()));
+#else
+    // Debug builds synchronize after every kernel launch, which is not
+    // allowed during stream capture, so the step runs uncaptured
+    doStep();
+#endif
+}
 
 void Solver::calcKineticRigthPart() {
     calcDerivatives(Stream(), DoubleBufferA(), DoubleBufferB());
@@ -60,26 +110,28 @@ void Solver::calcMagneticRightPart() {
 
 void Solver::timeSchemeKin(double weight) {
     _caller.call(TimeScheme_kernel, Vorticity().data(), OldVorticity().data(),
-                 RightPart().data(), Vorticity().length(), _currents.timeStep,
-                 weight);
+                 RightPart().data(), Vorticity().length(),
+                 (const double*)GpuTimeStep().data(), weight);
 }
 
 void Solver::timeSchemeMag(double weight) {
     _caller.call(TimeScheme_kernel, Potential().data(), OldPotential().data(),
-                 RightPart().data(), Potential().length(), _currents.timeStep,
-                 weight);
+                 RightPart().data(), Potential().length(),
+                 (const double*)GpuTimeStep().data(), weight);
 }
 
 void Solver::timeSchemeKinFinal(double weight) {
     _caller.call(TimeSchemeFinal_kernel, Vorticity().data(),
                  OldVorticity().data(), RightPart().data(),
-                 Vorticity().length(), _currents.timeStep, weight);
+                 Vorticity().length(), (const double*)GpuTimeStep().data(),
+                 weight);
 }
 
 void Solver::timeSchemeMagFinal(double weight) {
     _caller.call(TimeSchemeFinal_kernel, Potential().data(),
                  OldPotential().data(), RightPart().data(),
-                 Potential().length(), _currents.timeStep, weight);
+                 Potential().length(), (const double*)GpuTimeStep().data(),
+                 weight);
 }
 
 };  // namespace mhd

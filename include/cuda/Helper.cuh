@@ -34,6 +34,10 @@ protected:
             _doubleBufferD, _doubleBufferE, _doubleBufferF, _doubleBufferG,
             _doubleBufferH;
 
+        // Time step in device memory (read by the time scheme kernels,
+        // so the CUDA graph does not need to be rebuilt when dt changes)
+        GpuDoubleBuffer2D _gpuTimeStep;
+
         // Auxiliary Fields: Temporary CPU
         CpuDoubleBuffer1D _cpuReducedValue;
 
@@ -58,6 +62,7 @@ protected:
               _doubleBufferF(gridLength),
               _doubleBufferG(gridLength),
               _doubleBufferH(gridLength),
+              _gpuTimeStep(1),
               _cpuReducedValue(1),
               _output(gridLength) {}
     } _fields;
@@ -107,6 +112,7 @@ public:
     GpuDoubleBuffer2D& DoubleBufferF();
     GpuDoubleBuffer2D& DoubleBufferG();
     GpuDoubleBuffer2D& DoubleBufferH();
+    GpuDoubleBuffer2D& GpuTimeStep();
     CpuDoubleBuffer1D& CpuReducedValue();
     CpuDoubleBuffer2D& Output();
 

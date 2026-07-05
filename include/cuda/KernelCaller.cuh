@@ -39,9 +39,15 @@ private:
     size_t _sharedSize;
     size_t _sharedSizeFloat;
 
+    // Optional dedicated blocking stream: required for CUDA graph capture.
+    // Without it kernels go to the legacy default stream, which serializes
+    // with all blocking streams and synchronous cudaMemcpy calls
+    cudaStream_t _stream;
+
 public:
     KernelCaller(unsigned int gridLength, unsigned int dimBlockX,
-                 unsigned int dimBlockY, unsigned int sharedLength) {
+                 unsigned int dimBlockY, unsigned int sharedLength,
+                 bool ownStream = false) {
         _dimBlockX = dimBlockX;
         _dimBlockY = dimBlockY;
         _dimGridX = gridLength / dimBlockX;
@@ -51,7 +57,23 @@ public:
         _dimGridLinear = gridLength * gridLength / sharedLength;
         _sharedSize = sharedLength * sizeof(double);
         _sharedSizeFloat = sharedLength * sizeof(float);
+
+        _stream = nullptr;
+        if (ownStream) {
+            CUDA_CALL(cudaStreamCreate(&_stream));
+        }
     }
+
+    KernelCaller(const KernelCaller&) = delete;
+    KernelCaller& operator=(const KernelCaller&) = delete;
+
+    ~KernelCaller() {
+        if (_stream != nullptr) {
+            cudaStreamDestroy(_stream);
+        }
+    }
+
+    cudaStream_t stream() const { return _stream; }
 
     template <typename Kernel, typename... TArgs>
     void call(Kernel kernel, TArgs... args);
@@ -125,12 +147,12 @@ template <typename Kernel, typename... TArgs>
 void KernelCaller::callKernel(Kernel kernel, dim3 dimBlock, dim3 dimGrid,
                               size_t sharedSize, TArgs... args) {
 #ifdef __CUDACC__
-    kernel<<<dimGrid, dimBlock, sharedSize>>>(args...);
+    kernel<<<dimGrid, dimBlock, sharedSize, _stream>>>(args...);
     CUDA_CALL(cudaGetLastError());
 #ifndef NDEBUG
     // Debug-only: surface asynchronous kernel errors at the launch site.
-    // Release relies on default-stream ordering: the host must read results
-    // only through synchronous cudaMemcpy, which waits for preceding kernels.
+    // Release relies on stream ordering: the host must read results only
+    // through synchronous cudaMemcpy, which waits for preceding kernels.
     CUDA_CALL(cudaDeviceSynchronize());
 #endif
 #endif  // __CUDACC__

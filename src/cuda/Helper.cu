@@ -63,7 +63,9 @@ Helper::Helper(const Configs& configs)
       _transformator(configs._gridLength),
       _fields(configs._gridLength),
       _caller(configs._gridLength, configs._dimBlockX, configs._dimBlockY,
-              configs._sharedLength) {}
+              configs._sharedLength, true) {
+    _transformator.setStream(_caller.stream());
+}
 
 const GpuDoubleBuffer2D& Helper::getVorticity() {
     _caller.call(MultComplex_kernel, Vorticity().data(), Vorticity().length(),
@@ -161,6 +163,10 @@ GpuDoubleBuffer2D& Helper::DoubleBufferH() {
     return _fields._doubleBufferH;
 }
 
+GpuDoubleBuffer2D& Helper::GpuTimeStep() {
+    return _fields._gpuTimeStep;
+}
+
 CpuDoubleBuffer1D& Helper::CpuReducedValue() {
     return _fields._cpuReducedValue;
 }
@@ -225,6 +231,8 @@ void Helper::updateTimeStep() {
         fmax(_currents.maxVelocityField, _currents.maxMagneticField);
 
     _currents.timeStep = fmin(_currents.timeStep, maxTimeStep);
+
+    GpuTimeStep().copyFromHost(&_currents.timeStep);
 }
 
 void Helper::fillNormally(unsigned long seed, int offset) {

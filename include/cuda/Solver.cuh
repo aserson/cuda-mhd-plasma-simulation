@@ -7,12 +7,25 @@
 namespace mhd {
 class Solver : public Helper {
 private:
+    // Two-step time integration scheme captured into a CUDA graph
+    cudaGraph_t _graph;
+    cudaGraphExec_t _graphExec;
+    bool _graphCreated;
+
     void calcDerivatives(const GpuComplexBuffer2D& field,
                          GpuDoubleBuffer2D& derivativeX,
                          GpuDoubleBuffer2D& derivativeY);
 
+    void doStep();
+
 public:
     Solver(const mhd::Configs& configs);
+    ~Solver();
+
+    // Performs one full step of the two-step scheme; the kernel and FFT
+    // sequence is captured into a CUDA graph on the first call and
+    // launched as a single graph afterwards
+    void step();
 
     // Computes the kinetic right part and prepares the Jacobian for the
     // magnetic right part from the same derivative fields, so it must be

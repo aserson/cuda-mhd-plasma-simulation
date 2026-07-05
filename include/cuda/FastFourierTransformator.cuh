@@ -13,6 +13,8 @@ public:
 
     ~FastFourierTransformator();
 
+    void setStream(cudaStream_t stream);
+
     void forwardFFT(double* input, cufftDoubleComplex* output) const;
     void inverseFFT(cufftDoubleComplex* input, double* output) const;
 

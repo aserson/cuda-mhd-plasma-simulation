@@ -191,27 +191,9 @@ int main(int argc, char* argv[]) {
 
         // Main Cycle of the Program
         while (solver.shouldContinue() && creater.ShouldOpen()) {
-            // Time Integration Scheme
-            // Two-step Scheme
-
-            // First step
-            solver.calcKineticRigthPart();
-            solver.timeSchemeKin();
-
-            solver.calcMagneticRightPart();
-            solver.timeSchemeMag();
-
-            solver.updateStreamCurrent();
-
-            // Second step (the final time scheme also saves the fields
-            // as the previous timelayer)
-            solver.calcKineticRigthPart();
-            solver.timeSchemeKinFinal();
-
-            solver.calcMagneticRightPart();
-            solver.timeSchemeMagFinal();
-
-            solver.updateStreamCurrent();
+            // Time Integration Scheme: two-step scheme executed as a
+            // single CUDA graph
+            solver.step();
 
             // Update Time Step (energies are updated by the writer on output)
             solver.updateTimeStep();
