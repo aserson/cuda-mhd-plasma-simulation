@@ -83,15 +83,15 @@ bool Writer::saveData(mhd::Helper<T>& helper, opengl::Creater& creater) {
                      _outputPath / "vorticity" / uintToStr(_outputNumber));
             }
             if (_settings.saveCurrent) {
-                save(helper.getVorticity().data(),
+                save(helper.getCurrent().data(),
                      _outputPath / "current" / uintToStr(_outputNumber));
             }
             if (_settings.saveStream) {
-                save(helper.getVorticity().data(),
+                save(helper.getStream().data(),
                      _outputPath / "stream" / uintToStr(_outputNumber));
             }
             if (_settings.savePotential) {
-                save(helper.getVorticity().data(),
+                save(helper.getPotential().data(),
                      _outputPath / "potential" / uintToStr(_outputNumber));
             }
 
