@@ -46,6 +46,13 @@ __global__ static void DiffByX_kernel(const cufftDoubleComplex* input,
 
     output[idx].x = -(double)x * input[idx].y;
     output[idx].y = (double)x * input[idx].x;
+
+    // The launch grid covers y in [0, N/2): zero the Nyquist column too,
+    // the consumers inverse-transform the whole buffer
+    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
+        output[idx + 1].x = 0.0;
+        output[idx + 1].y = 0.0;
+    }
 }
 
 __global__ static void DiffByY_kernel(const cufftDoubleComplex* input,
@@ -57,6 +64,11 @@ __global__ static void DiffByY_kernel(const cufftDoubleComplex* input,
 
     output[idx].x = -(double)y * input[idx].y;
     output[idx].y = (double)y * input[idx].x;
+
+    if ((blockIdx.x == gridDim.x - 1) && (threadIdx.x == blockDim.x - 1)) {
+        output[idx + 1].x = 0.0;
+        output[idx + 1].y = 0.0;
+    }
 }
 
 __global__ static void LaplasOperator_kernel(const cufftDoubleComplex* input,
