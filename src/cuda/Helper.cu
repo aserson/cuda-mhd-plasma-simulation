@@ -125,6 +125,10 @@ GpuComplexBuffer2D& Helper::ComplexBuffer() {
     return _fields._complexBuffer;
 }
 
+GpuComplexBuffer2D& Helper::ComplexBufferB() {
+    return _fields._complexBufferB;
+}
+
 GpuDoubleBuffer2D& Helper::DoubleBufferA() {
     return _fields._doubleBufferA;
 }
@@ -135,6 +139,10 @@ GpuDoubleBuffer2D& Helper::DoubleBufferB() {
 
 GpuDoubleBuffer2D& Helper::DoubleBufferC() {
     return _fields._doubleBufferC;
+}
+
+GpuDoubleBuffer2D& Helper::DoubleBufferD() {
+    return _fields._doubleBufferD;
 }
 
 CpuDoubleBuffer1D& Helper::CpuReducedValue() {
@@ -168,6 +176,11 @@ void Helper::updatePotential() {
 void Helper::updateCurrent() {
     _caller.call(LaplasOperator_kernel, Potential().data(),
                  Potential().length(), Current().data());
+}
+
+void Helper::updateStreamCurrent() {
+    _caller.call(StreamCurrent_kernel, Vorticity().data(), Potential().data(),
+                 Stream().data(), Current().data(), Vorticity().length());
 }
 
 void Helper::timeStep() {

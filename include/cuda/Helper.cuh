@@ -29,8 +29,9 @@ protected:
         GpuComplexBuffer2D _oldVorticity, _oldPotential, _rightPart;
 
         // Auxiliary Fields: Temporary GPU
-        GpuComplexBuffer2D _complexBuffer;
-        GpuDoubleBuffer2D _doubleBufferA, _doubleBufferB, _doubleBufferC;
+        GpuComplexBuffer2D _complexBuffer, _complexBufferB;
+        GpuDoubleBuffer2D _doubleBufferA, _doubleBufferB, _doubleBufferC,
+            _doubleBufferD;
 
         // Auxiliary Fields: Temporary CPU
         CpuDoubleBuffer1D _cpuReducedValue;
@@ -47,9 +48,11 @@ protected:
               _oldPotential(gridLength),
               _rightPart(gridLength),
               _complexBuffer(gridLength),
+              _complexBufferB(gridLength),
               _doubleBufferA(gridLength),
               _doubleBufferB(gridLength),
               _doubleBufferC(gridLength),
+              _doubleBufferD(gridLength),
               _cpuReducedValue(1),
               _output(gridLength) {}
     } _fields;
@@ -69,6 +72,7 @@ public:
     void updateVorticity();
     void updatePotential();
     void updateCurrent();
+    void updateStreamCurrent();
 
     void timeStep();
     void updateTimeStep();
@@ -89,9 +93,11 @@ public:
     GpuComplexBuffer2D& OldPotential();
     GpuComplexBuffer2D& RightPart();
     GpuComplexBuffer2D& ComplexBuffer();
+    GpuComplexBuffer2D& ComplexBufferB();
     GpuDoubleBuffer2D& DoubleBufferA();
     GpuDoubleBuffer2D& DoubleBufferB();
     GpuDoubleBuffer2D& DoubleBufferC();
+    GpuDoubleBuffer2D& DoubleBufferD();
     CpuDoubleBuffer1D& CpuReducedValue();
     CpuDoubleBuffer2D& Output();
 

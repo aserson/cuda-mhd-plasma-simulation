@@ -123,6 +123,29 @@ __global__ static void MinusInverseLaplasOperator_kernel(
     output[idx].y = value * input[idx].y;
 }
 
+// Fused updateStream + updateCurrent: stream = vorticity / k^2,
+// current = -k^2 * potential
+__global__ static void StreamCurrent_kernel(
+    const cufftDoubleComplex* vorticity, const cufftDoubleComplex* potential,
+    cufftDoubleComplex* stream, cufftDoubleComplex* current,
+    unsigned int gridLength) {
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = (gridLength / 2 + 1) * x + y;
+
+    if (x > gridLength / 2) {
+        x = x - gridLength;
+    }
+    double value = (double)(x * x + y * y);
+    double inverseValue = (idx == 0) ? 0.0 : 1. / value;
+
+    stream[idx].x = inverseValue * vorticity[idx].x;
+    stream[idx].y = inverseValue * vorticity[idx].y;
+
+    current[idx].x = -value * potential[idx].x;
+    current[idx].y = -value * potential[idx].y;
+}
+
 // Shared Memory Kernels
 __global__ static void Max_kernel(const double* input, double* output) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;

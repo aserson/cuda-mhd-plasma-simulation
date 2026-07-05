@@ -56,26 +56,18 @@ __global__ void DealaliasingDiffByY_kernel(const cufftDoubleComplex* input,
     }
 }
 
-__global__ void JacobianFirstPart_kernel(double* inputA, double* inputB,
-                                         double* output,
-                                         unsigned int gridLength,
-                                         double lambda) {
+// output may alias one of the inputs: each thread only writes the element
+// it has already read
+__global__ void Jacobian_kernel(const double* leftX, const double* rightY,
+                                const double* leftY, const double* rightX,
+                                double* output, unsigned int gridLength,
+                                double lambda) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = gridLength * x + y;
 
-    output[idx] = inputA[idx] * inputB[idx] * lambda * lambda;
-}
-
-__global__ void JacobianSecondPart_kernel(double* inputA, double* inputB,
-                                          double* output,
-                                          unsigned int gridLength,
-                                          double lambda) {
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx = gridLength * x + y;
-
-    output[idx] = output[idx] - inputA[idx] * inputB[idx] * lambda * lambda;
+    output[idx] = (leftX[idx] * rightY[idx] - leftY[idx] * rightX[idx]) *
+                  lambda * lambda;
 }
 
 __global__ void Dealaliasing_kernel(cufftDoubleComplex* output,
@@ -100,10 +92,10 @@ __global__ void Dealaliasing_kernel(cufftDoubleComplex* output,
 }
 
 // Equation Kernels
-__global__ void FirstRigthPart_kernel(cufftDoubleComplex* w,
-                                      cufftDoubleComplex* jacobian,
-                                      cufftDoubleComplex* rightPart,
-                                      unsigned int gridLength, double nu) {
+__global__ void KineticRigthPart_kernel(
+    const cufftDoubleComplex* w, const cufftDoubleComplex* jacobianFirst,
+    const cufftDoubleComplex* jacobianSecond, cufftDoubleComplex* rightPart,
+    unsigned int gridLength, double nu) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
     int y = blockIdx.x * blockDim.x + threadIdx.x;
     int idx = (gridLength / 2 + 1) * x + y;
@@ -112,19 +104,10 @@ __global__ void FirstRigthPart_kernel(cufftDoubleComplex* w,
         x = x - gridLength;
     double value = (double)(x * x + y * y);
 
-    rightPart[idx].x = jacobian[idx].x - nu * value * w[idx].x;
-    rightPart[idx].y = jacobian[idx].y - nu * value * w[idx].y;
-}
-
-__global__ void SecondRigthPart_kernel(cufftDoubleComplex* jacobian,
-                                       cufftDoubleComplex* rightPart,
-                                       unsigned int gridLength) {
-    int x = blockIdx.y * blockDim.y + threadIdx.y;
-    int y = blockIdx.x * blockDim.x + threadIdx.x;
-    int idx = (gridLength / 2 + 1) * x + y;
-
-    rightPart[idx].x += jacobian[idx].x;
-    rightPart[idx].y += jacobian[idx].y;
+    rightPart[idx].x =
+        jacobianFirst[idx].x + jacobianSecond[idx].x - nu * value * w[idx].x;
+    rightPart[idx].y =
+        jacobianFirst[idx].y + jacobianSecond[idx].y - nu * value * w[idx].y;
 }
 
 __global__ void ThirdRigthPart_kernel(cufftDoubleComplex* a,
@@ -155,5 +138,24 @@ __global__ void TimeScheme_kernel(cufftDoubleComplex* field,
 
     field[idx].x = oldField[idx].x + weight * rightPart[idx].x * dt;
     field[idx].y = oldField[idx].y + weight * rightPart[idx].y * dt;
+}
+
+// Final integration stage: also stores the new value as the old field for
+// the next time step, replacing a separate device-to-device copy
+__global__ void TimeSchemeFinal_kernel(cufftDoubleComplex* field,
+                                       cufftDoubleComplex* oldField,
+                                       const cufftDoubleComplex* rightPart,
+                                       unsigned int gridLength, double dt,
+                                       double weight = 1.0) {
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = (gridLength / 2 + 1) * x + y;
+
+    cufftDoubleComplex value;
+    value.x = oldField[idx].x + weight * rightPart[idx].x * dt;
+    value.y = oldField[idx].y + weight * rightPart[idx].y * dt;
+
+    field[idx] = value;
+    oldField[idx] = value;
 }
 }  // namespace mhd

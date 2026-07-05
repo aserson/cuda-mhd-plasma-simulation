@@ -201,21 +201,17 @@ int main(int argc, char* argv[]) {
             solver.calcMagneticRightPart();
             solver.timeSchemeMag();
 
-            solver.updateStream();
-            solver.updateCurrent();
+            solver.updateStreamCurrent();
 
-            // Second step
+            // Second step (the final time scheme also saves the fields
+            // as the previous timelayer)
             solver.calcKineticRigthPart();
-            solver.timeSchemeKin();
+            solver.timeSchemeKinFinal();
 
             solver.calcMagneticRightPart();
-            solver.timeSchemeMag();
+            solver.timeSchemeMagFinal();
 
-            solver.updateStream();
-            solver.updateCurrent();
-
-            // Saving fields from previous timelayer
-            solver.saveOldFields();
+            solver.updateStreamCurrent();
 
             // Update Time Step (energies are updated by the writer on output)
             solver.updateTimeStep();
