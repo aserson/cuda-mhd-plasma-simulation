@@ -4,7 +4,9 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDoubleValidator>
+#include <QFileDialog>
 #include <QFormLayout>
+#include <QMessageBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -63,11 +65,17 @@ void FieldView::paintEvent(QPaintEvent*) {
     painter.drawImage(target, _image);
 }
 
-MainWindow::MainWindow(const std::filesystem::path& resPath) {
+MainWindow::MainWindow(const std::filesystem::path& resPath,
+                       const std::filesystem::path& configsPath)
+    : _configsPath(configsPath) {
     setWindowTitle("MHD Simulation");
 
     _view = new FieldView(this);
     QWidget* side = buildSettingsPanel(resPath);
+
+    // The widgets start from the same defaults as a configuration file
+    // with no keys set
+    applyConfigs(mhd::Configs{YAML::Node()});
 
     // The field view touches the window edges; the settings column keeps
     // its own inner padding
@@ -85,9 +93,8 @@ MainWindow::MainWindow(const std::filesystem::path& resPath) {
     resize(height + side->minimumWidth(), height);
 }
 
-QLineEdit* MainWindow::addNumber(QFormLayout* form, const QString& label,
-                                 double value) {
-    auto* edit = new QLineEdit(QString::number(value), this);
+QLineEdit* MainWindow::addNumber(QFormLayout* form, const QString& label) {
+    auto* edit = new QLineEdit(this);
     auto* validator = new QDoubleValidator(edit);
     validator->setLocale(QLocale::c());
     edit->setValidator(validator);
@@ -96,12 +103,17 @@ QLineEdit* MainWindow::addNumber(QFormLayout* form, const QString& label,
 }
 
 QWidget* MainWindow::buildSettingsPanel(const std::filesystem::path& resPath) {
-    // The widgets start from the same defaults as a configuration file
-    // with no keys set
-    const mhd::Configs defaults{YAML::Node()};
-
     auto* panel = new QWidget(this);
     auto* column = new QVBoxLayout(panel);
+
+    // Loading a configuration file fills the panel; the values apply to
+    // the next started session
+    auto* loadRow = new QHBoxLayout();
+    auto* loadButton = new QPushButton("Load config...", panel);
+    connect(loadButton, &QPushButton::clicked, [this] { loadConfigFile(); });
+    loadRow->addWidget(loadButton);
+    loadRow->addStretch(1);
+    column->addLayout(loadRow);
 
     // Status
     auto* statusBox = new QGroupBox("Status", panel);
@@ -118,58 +130,48 @@ QWidget* MainWindow::buildSettingsPanel(const std::filesystem::path& resPath) {
     _gridLength = new QComboBox(simulationBox);
     for (unsigned int length = 256; length <= 8192; length *= 2)
         _gridLength->addItem(QString::number(length));
-    _gridLength->setCurrentText(QString::number(defaults._gridLength));
     simulationForm->addRow("GridLength", _gridLength);
     _precision = new QComboBox(simulationBox);
     _precision->addItems({"double", "float"});
-    _precision->setCurrentIndex(defaults._singlePrecision ? 1 : 0);
     simulationForm->addRow("Precision", _precision);
-    _time = addNumber(simulationForm, "Time", defaults._time);
-    _cfl = addNumber(simulationForm, "CFL", defaults._cfl);
-    _maxTimeStep = addNumber(simulationForm, "MaxTimeStep",
-                             defaults._maxTimeStep);
+    _time = addNumber(simulationForm, "Time");
+    _cfl = addNumber(simulationForm, "CFL");
+    _maxTimeStep = addNumber(simulationForm, "MaxTimeStep");
     column->addWidget(simulationBox);
 
     // Equations
     auto* equationsBox = new QGroupBox("Equation coefficients", panel);
     auto* equationsForm = new QFormLayout(equationsBox);
-    _nu = addNumber(equationsForm, "nu", defaults._nu);
-    _eta = addNumber(equationsForm, "eta", defaults._eta);
-    _beta = addNumber(equationsForm, "beta", defaults._beta);
+    _nu = addNumber(equationsForm, "nu");
+    _eta = addNumber(equationsForm, "eta");
+    _beta = addNumber(equationsForm, "beta");
     column->addWidget(equationsBox);
 
     // Initial conditions
     auto* initialBox = new QGroupBox("Initial condition", panel);
     auto* initialForm = new QFormLayout(initialBox);
-    _kineticEnergy = addNumber(initialForm, "KineticEnergy",
-                               defaults._kineticEnergy);
-    _magneticEnergy = addNumber(initialForm, "MagneticEnergy",
-                                defaults._magneticEnergy);
+    _kineticEnergy = addNumber(initialForm, "KineticEnergy");
+    _magneticEnergy = addNumber(initialForm, "MagneticEnergy");
     _averageWN = new QSpinBox(initialBox);
     _averageWN->setRange(1, 1024);
-    _averageWN->setValue((int)defaults._averageWN);
     initialForm->addRow("AverageWN", _averageWN);
     column->addWidget(initialBox);
 
     // Forcing
     auto* forcingBox = new QGroupBox("Forcing", panel);
     auto* forcingForm = new QFormLayout(forcingBox);
-    _kineticForcing = addNumber(forcingForm, "KineticForcing",
-                                defaults._kineticForcing);
-    _magneticForcing = addNumber(forcingForm, "MagneticForcing",
-                                 defaults._magneticForcing);
+    _kineticForcing = addNumber(forcingForm, "KineticForcing");
+    _magneticForcing = addNumber(forcingForm, "MagneticForcing");
     _forcingWN = new QSpinBox(forcingBox);
     _forcingWN->setRange(1, 1024);
-    _forcingWN->setValue((int)defaults._forcingWN);
     forcingForm->addRow("ForcingWN", _forcingWN);
-    _forcingBand = addNumber(forcingForm, "ForcingBand",
-                             defaults._forcingBand);
+    _forcingBand = addNumber(forcingForm, "ForcingBand");
     column->addWidget(forcingBox);
 
     // Output
     auto* outputBox = new QGroupBox("Output", panel);
     auto* outputForm = new QFormLayout(outputBox);
-    _outputStep = addNumber(outputForm, "OutputStep", defaults._outputStep);
+    _outputStep = addNumber(outputForm, "OutputStep");
     _colorMap = new QComboBox(outputBox);
     std::filesystem::path colorMapsPath = resPath / "colormaps";
     if (exists(colorMapsPath)) {
@@ -178,19 +180,13 @@ QWidget* MainWindow::buildSettingsPanel(const std::filesystem::path& resPath) {
             _colorMap->addItem(
                 QString::fromStdString(entry.path().filename().string()));
     }
-    _colorMap->setCurrentText(QString::fromStdString(defaults._colorMap));
     outputForm->addRow("ColorMap", _colorMap);
     _saveData = new QCheckBox("SaveData (write fields to disk)", outputBox);
-    _saveData->setChecked(defaults._saveData);
     outputForm->addRow(_saveData);
     _saveVorticity = new QCheckBox("Vorticity", outputBox);
-    _saveVorticity->setChecked(defaults._saveVorticity);
     _saveCurrent = new QCheckBox("Current", outputBox);
-    _saveCurrent->setChecked(defaults._saveCurrent);
     _saveStream = new QCheckBox("Stream", outputBox);
-    _saveStream->setChecked(defaults._saveStream);
     _savePotential = new QCheckBox("Potential", outputBox);
-    _savePotential->setChecked(defaults._savePotential);
     auto* fieldsRow = new QHBoxLayout();
     fieldsRow->addWidget(_saveVorticity);
     fieldsRow->addWidget(_saveCurrent);
@@ -250,6 +246,60 @@ QWidget* MainWindow::buildSettingsPanel(const std::filesystem::path& resPath) {
     sideColumn->addStretch(1);
     side->setFixedWidth(panel->sizeHint().width() + 48);
     return side;
+}
+
+void MainWindow::applyConfigs(const mhd::Configs& configs) {
+    // Combo boxes get the value inserted when it is not in the list yet
+    // (a grid length or a color map outside the predefined options)
+    QString gridLength = QString::number(configs._gridLength);
+    if (_gridLength->findText(gridLength) < 0)
+        _gridLength->addItem(gridLength);
+    _gridLength->setCurrentText(gridLength);
+
+    _precision->setCurrentIndex(configs._singlePrecision ? 1 : 0);
+    _time->setText(QString::number(configs._time));
+    _cfl->setText(QString::number(configs._cfl));
+    _maxTimeStep->setText(QString::number(configs._maxTimeStep));
+
+    _nu->setText(QString::number(configs._nu));
+    _eta->setText(QString::number(configs._eta));
+    _beta->setText(QString::number(configs._beta));
+
+    _kineticEnergy->setText(QString::number(configs._kineticEnergy));
+    _magneticEnergy->setText(QString::number(configs._magneticEnergy));
+    _averageWN->setValue((int)configs._averageWN);
+
+    _kineticForcing->setText(QString::number(configs._kineticForcing));
+    _magneticForcing->setText(QString::number(configs._magneticForcing));
+    _forcingWN->setValue((int)configs._forcingWN);
+    _forcingBand->setText(QString::number(configs._forcingBand));
+
+    _outputStep->setText(QString::number(configs._outputStep));
+    QString colorMap = QString::fromStdString(configs._colorMap);
+    if (_colorMap->findText(colorMap) < 0)
+        _colorMap->addItem(colorMap);
+    _colorMap->setCurrentText(colorMap);
+
+    _saveData->setChecked(configs._saveData);
+    _saveVorticity->setChecked(configs._saveVorticity);
+    _saveCurrent->setChecked(configs._saveCurrent);
+    _saveStream->setChecked(configs._saveStream);
+    _savePotential->setChecked(configs._savePotential);
+}
+
+void MainWindow::loadConfigFile() {
+    QString filePath = QFileDialog::getOpenFileName(
+        this, "Load configuration",
+        QString::fromStdString(_configsPath.string()),
+        "YAML files (*.yaml *.yml);;All files (*)");
+    if (filePath.isEmpty())
+        return;
+
+    try {
+        applyConfigs(mhd::Configs{YAML::LoadFile(filePath.toStdString())});
+    } catch (const std::exception& error) {
+        QMessageBox::warning(this, "Configuration error", error.what());
+    }
 }
 
 bool MainWindow::takeStartRequest() {

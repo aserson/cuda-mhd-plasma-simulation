@@ -14,6 +14,17 @@
 #include "Writer.h"
 #include "cuda/Solver.cuh"
 
+// The configs folder is optional in the Qt build: it only serves as the
+// starting directory of the Load config dialog
+static std::filesystem::path FindConfPath(const std::filesystem::path& exePath) {
+    for (auto path = exePath; ; path = path.parent_path()) {
+        if (exists(path / "configs"))
+            return path / "configs";
+        if (path == path.root_path())
+            return std::filesystem::path("");
+    }
+}
+
 static std::filesystem::path FindResPath(std::filesystem::path& exePath) {
     if (exists(exePath / "res")) {
         return exePath / "res";
@@ -130,7 +141,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    qtui::MainWindow window(resPath);
+    qtui::MainWindow window(resPath, FindConfPath(projectPath));
     window.show();
 
     while (!window.isClosed()) {

@@ -37,7 +37,8 @@ private:
 // event-loop iterations, so no worker thread is needed
 class MainWindow : public QWidget {
 public:
-    explicit MainWindow(const std::filesystem::path& resPath);
+    MainWindow(const std::filesystem::path& resPath,
+               const std::filesystem::path& configsPath);
 
     // Consumes the pending start request (polled by the outer loop)
     bool takeStartRequest();
@@ -63,8 +64,14 @@ protected:
 
 private:
     QWidget* buildSettingsPanel(const std::filesystem::path& resPath);
-    QLineEdit* addNumber(QFormLayout* form, const QString& label,
-                         double value);
+    QLineEdit* addNumber(QFormLayout* form, const QString& label);
+
+    // Fills every settings widget from a parsed configuration; used for
+    // the initial defaults and by the Load config button
+    void applyConfigs(const mhd::Configs& configs);
+    void loadConfigFile();
+
+    std::filesystem::path _configsPath;
 
     bool _startRequested = false;
     bool _stopRequested = false;
