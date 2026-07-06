@@ -45,8 +45,21 @@ public:
     Writer(const std::filesystem::path& outputPath, const mhd::Configs& configs,
            const std::filesystem::path& resPath);
 
+    // Saves the due data files, renders the pixels of the displayed field
+    // and prints the currents; returns true when a new frame was painted.
+    // The pixels are available through getPixels afterwards
+    template <typename T>
+    bool saveData(mhd::Helper<T>& helper);
+
+    // Same, but also uploads the painted frame as a texture of the
+    // OpenGL window
     template <typename T>
     bool saveData(mhd::Helper<T>& helper, opengl::Creater& creater);
+
+    const graphics::CpuPixelBuffer2D& getPixels() const {
+        return _painter.getPixels();
+    }
+    unsigned int getPixelsLength() const { return _painter.getLength(); }
 
     void saveCurrents(const Currents& currents,
                       const std::filesystem::path& filePath);

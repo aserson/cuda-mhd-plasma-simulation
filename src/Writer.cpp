@@ -65,7 +65,7 @@ Writer::Writer(const std::filesystem::path& outputPath,
                 configs._showGraphics} {}
 
 template <typename T>
-bool Writer::saveData(mhd::Helper<T>& helper, opengl::Creater& creater) {
+bool Writer::saveData(mhd::Helper<T>& helper) {
     // Energies are only consumed by the output below (shouldWrite implies
     // shouldPaint), so they are not computed on the remaining time steps
     if (shouldPaint(helper._currents.time)) {
@@ -110,8 +110,6 @@ bool Writer::saveData(mhd::Helper<T>& helper, opengl::Creater& creater) {
             } else if (_settings.savePotential) {
                 _painter.doubleToPixels(helper.getPotential());
             }
-            creater.AddTexture(_painter.getPixels().data(),
-                               _painter.getLength(), _painter.getLength());
         }
 
         printCurrents(helper._currents);
@@ -123,7 +121,21 @@ bool Writer::saveData(mhd::Helper<T>& helper, opengl::Creater& creater) {
     return false;
 }
 
+template <typename T>
+bool Writer::saveData(mhd::Helper<T>& helper, opengl::Creater& creater) {
+    bool painted = saveData(helper);
+
+    if (painted && _settings.showGraphics) {
+        creater.AddTexture(_painter.getPixels().data(), _painter.getLength(),
+                           _painter.getLength());
+    }
+
+    return painted;
+}
+
 // The solver runs in either double or float precision
+template bool Writer::saveData<double>(mhd::Helper<double>& helper);
+template bool Writer::saveData<float>(mhd::Helper<float>& helper);
 template bool Writer::saveData<double>(mhd::Helper<double>& helper,
                                        opengl::Creater& creater);
 template bool Writer::saveData<float>(mhd::Helper<float>& helper,

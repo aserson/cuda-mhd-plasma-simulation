@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <string>
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(M_PI)
 #define M_PI 3.141592653589793238462643
 #endif
 
@@ -52,7 +52,7 @@ private:
         static const unsigned int defaultAverageWN = 10;
 
         // Output Parameters
-        static constexpr double defaultOutputStep = 0.1;
+        static constexpr double defaultOutputStep = 0.01;
         static constexpr double defaultOutputStart = 0.0;
         static const unsigned int defaultMaxOutputs = 1000;
 
@@ -130,8 +130,15 @@ private:
     unsigned int getWindowHeight();
     std::string getColorMap();
 
+    // Shared part of the constructors: reads every parameter from _config
+    // (missing keys fall back to the defaults) and computes derived values
+    void load();
+
 public:
     Configs(const std::filesystem::path& filePath);
+    // Builds the configuration directly from a YAML node; an empty node
+    // yields the full default configuration (no file needed)
+    explicit Configs(const YAML::Node& config);
 
     std::string ParametersPrint() const;
     void ParametersSave(const std::filesystem::path& outputDir) const;

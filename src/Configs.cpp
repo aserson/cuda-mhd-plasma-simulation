@@ -8,7 +8,15 @@
 namespace mhd {
 Configs::Configs(const std::filesystem::path& filePath) : _filePath(filePath) {
     _config = YAML::LoadFile(_filePath.string());
+    load();
+}
 
+Configs::Configs(const YAML::Node& config) {
+    _config = config;
+    load();
+}
+
+void Configs::load() {
     // Simulation Parameterss
     _gridLength = getGridLength();
     _singlePrecision = getSinglePrecision();
