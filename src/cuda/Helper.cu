@@ -271,6 +271,12 @@ void Helper<T>::updateTimeStep() {
         cfl * gridStep /
         fmax(_currents.maxVelocityField, _currents.maxMagneticField);
 
+    // The fastest Rossby wave is domain-sized (frequency beta * kx / k^2
+    // is maximal at k = 1), so it constrains the step through the
+    // frequency criterion dt * omega <= cfl rather than the grid step
+    if (_configs._beta > 0.)
+        _currents.timeStep = fmin(_currents.timeStep, cfl / _configs._beta);
+
     _currents.timeStep = fmin(_currents.timeStep, maxTimeStep);
 
     T deviceTimeStep = (T)_currents.timeStep;

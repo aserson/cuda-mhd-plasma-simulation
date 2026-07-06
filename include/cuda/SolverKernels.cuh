@@ -115,7 +115,7 @@ template <typename T>
 __global__ void KineticRigthPart_kernel(
     const Complex_t<T>* w, const Complex_t<T>* jacobianFirst,
     const Complex_t<T>* jacobianSecond, Complex_t<T>* rightPart,
-    unsigned int gridLength, T nu, unsigned int dealWN,
+    unsigned int gridLength, T nu, T beta, unsigned int dealWN,
     const unsigned int* forcingStep, unsigned int forcingSeed, T forcingAmp,
     T forcingKSqMin, T forcingKSqMax) {
     int x = blockIdx.y * blockDim.y + threadIdx.y;
@@ -134,6 +134,16 @@ __global__ void KineticRigthPart_kernel(
     } else {
         rightPart[idx].x = -nu * value * w[idx].x;
         rightPart[idx].y = -nu * value * w[idx].y;
+    }
+
+    // Beta-plane rotation: -beta * d(psi)/dy with psi = w / k^2 in the
+    // spectral space. The zonal direction is the contiguous y dimension,
+    // which the painter maps to the horizontal axis of the screen; the
+    // sign sets the direction of the Rossby wave phase propagation
+    if (beta != T(0.0) && value > T(0.0)) {
+        T betaFactor = beta * (T)y / value;
+        rightPart[idx].x += betaFactor * w[idx].y;
+        rightPart[idx].y -= betaFactor * w[idx].x;
     }
 
     AddForcing(rightPart, idx, x, y, gridLength, value, forcingStep,

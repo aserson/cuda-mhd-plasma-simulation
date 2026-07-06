@@ -25,6 +25,7 @@ Configs::Configs(const std::filesystem::path& filePath) : _filePath(filePath) {
     // Equation Coefficients
     _nu = getNu();
     _eta = getEta();
+    _beta = getBeta();
 
     // Forcing Coefficients
     _kineticForcing = getKineticForcing();
@@ -94,6 +95,7 @@ std::string Configs::ParametersPrint() const {
     output << "Equation coefficients:" << std::endl;
     output << "  nu = " << std::setw(13) << std::left << _nu << std::endl;
     output << "  eta = " << std::setw(13) << std::left << _eta << std::endl;
+    output << "  beta = " << std::setw(13) << std::left << _beta << std::endl;
 
     output << std::endl;
 
@@ -120,6 +122,7 @@ void Configs::ParametersSave(const std::filesystem::path& outputDir) const {
             << "Emag0: " << _magneticEnergy << std::endl
             << "nu: " << _nu << std::endl
             << "eta: " << _eta << std::endl
+            << "beta: " << _beta << std::endl
             << "kineticForcing: " << _kineticForcing << std::endl
             << "magneticForcing: " << _magneticForcing << std::endl
             << "forcingWN: " << _forcingWN << std::endl
@@ -208,6 +211,14 @@ double Configs::getEta() {
         return _config["eta"].as<double>();
     } else {
         return DefaultConfigs::defaultEta;
+    }
+}
+
+double Configs::getBeta() {
+    if (_config["beta"]) {
+        return _config["beta"].as<double>();
+    } else {
+        return DefaultConfigs::defaultBeta;
     }
 }
 

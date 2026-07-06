@@ -38,6 +38,7 @@ private:
         // Equation Coefficients
         static constexpr double defaultNu = 1.e-4;
         static constexpr double defaultEta = 1.e-4;
+        static constexpr double defaultBeta = 0.;
 
         // Forcing Coefficients
         static constexpr double defaultKineticForcing = 0.;
@@ -91,6 +92,7 @@ private:
     // Equation Coefficients
     double getNu();
     double getEta();
+    double getBeta();
 
     // Forcing Coefficients
     double getKineticForcing();
@@ -145,9 +147,11 @@ public:
     double _maxTimeStep;
     unsigned int _timeStepUpdateInterval;
 
-    // Equation Coefficients
+    // Equation Coefficients: beta is the planetary vorticity gradient of
+    // the beta-plane approximation (rotation), acting on the kinetic part
     double _nu;
     double _eta;
+    double _beta;
 
     // Forcing Coefficients: energy pumping at the wavenumber ring
     // |k| in [ForcingWN - ForcingBand, ForcingWN + ForcingBand]

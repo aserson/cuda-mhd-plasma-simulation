@@ -127,8 +127,8 @@ void Solver<T>::calcKineticRigthPart() {
                        this->ComplexBuffer().data(),
                        this->ComplexBufferB().data(), this->RightPart().data(),
                        this->_configs._gridLength, (T)this->_configs._nu,
-                       this->_configs._dealWN, _forcingStep.data(),
-                       _forcingSeed,
+                       (T)this->_configs._beta, this->_configs._dealWN,
+                       _forcingStep.data(), _forcingSeed,
                        (T)(this->_configs._kineticForcing * spectralNorm),
                        (T)this->_configs._forcingKSqMin,
                        (T)this->_configs._forcingKSqMax);

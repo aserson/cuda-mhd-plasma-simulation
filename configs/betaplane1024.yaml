@@ -1,0 +1,19 @@
+GridLength : 1024
+Time : 20.
+OutputStep : 0.01
+
+nu : 1.e-4
+eta : 1.e-4
+
+# Beta-plane approximation: the planetary vorticity gradient adds the
+# Rossby wave term to the vorticity equation; also tightens the CFL
+# condition through the fastest wave (phase velocity ~ beta)
+beta : 50.
+
+KineticForcing : 0.1
+MagneticForcing : 0.1
+ForcingWN : 10
+ForcingBand : 1.5
+
+ShowGraphics : true
+ColorMap : plasma
