@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <QApplication>
 #include <QMessageBox>
@@ -98,9 +99,18 @@ static void runSession(const mhd::Configs& configs, qtui::MainWindow& window,
     solver.saveOldFields();
     solver.updateTimeStep();
 
+    std::vector<double> kineticSpectrum, magneticSpectrum;
+
     auto publish = [&]() {
         window.showFrame(writer.getPixels().data(), writer.getPixelsLength());
         window.showStatus(solver._currents);
+
+        // The spectra cost extra GPU passes, so they are only computed
+        // while their tab is in front
+        if (window.spectraVisible()) {
+            solver.updateSpectra(kineticSpectrum, magneticSpectrum);
+            window.showSpectra(kineticSpectrum, magneticSpectrum);
+        }
     };
 
     if (writer.saveData(solver))

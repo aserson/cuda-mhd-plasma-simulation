@@ -290,6 +290,39 @@ __global__ void EnergyIntegrate_kernel(T* field, T* sum) {
         sum[blockIdx.x] = shared[0];
 }
 
+// Energy Spectrum Kernels
+template <typename T>
+__global__ void FillZero_kernel(T* buffer, unsigned int length) {
+    unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < length)
+        buffer[idx] = T(0.0);
+}
+
+// Accumulates the shell energy spectrum of a scalar potential (the stream
+// function or the magnetic potential): E(k) ~ k^2 |f_k|^2 summed over the
+// rings of unit width. A mode with ky > 0 also stands for its conjugate
+// pair, which the half-spectrum layout does not store
+template <typename T>
+__global__ void EnergySpectrum_kernel(const Complex_t<T>* field, T* spectrum,
+                                      unsigned int gridLength) {
+    int x = blockIdx.y * blockDim.y + threadIdx.y;
+    int y = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = (gridLength / 2 + 1) * x + y;
+
+    if (x > gridLength / 2)
+        x = x - gridLength;
+    T value = (T)(x * x + y * y);
+
+    unsigned int shell = (unsigned int)(sqrt((double)value) + 0.5);
+    if ((shell == 0) || (shell > gridLength / 2))
+        return;
+
+    T weight = (y == 0) ? T(1.0) : T(2.0);
+    T energy = weight * value *
+               (field[idx].x * field[idx].x + field[idx].y * field[idx].y);
+    atomicAdd(&spectrum[shell], energy);
+}
+
 // Initial Conditions
 __global__ static void FillStates(curandState* state, unsigned int gridLength,
                                   unsigned long seed) {

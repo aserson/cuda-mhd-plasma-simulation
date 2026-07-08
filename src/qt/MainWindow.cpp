@@ -12,11 +12,14 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QVBoxLayout>
 
+#include <cmath>
 #include <sstream>
 
 namespace qtui {
@@ -65,12 +68,125 @@ void FieldView::paintEvent(QPaintEvent*) {
     painter.drawImage(target, _image);
 }
 
+SpectrumView::SpectrumView(QWidget* parent) : QWidget(parent) {
+    setMinimumSize(512, 512);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+}
+
+void SpectrumView::setSpectra(const std::vector<double>& kinetic,
+                              const std::vector<double>& magnetic) {
+    _kinetic = kinetic;
+    _magnetic = magnetic;
+    update();
+}
+
+void SpectrumView::paintEvent(QPaintEvent*) {
+    QPainter painter(this);
+    painter.fillRect(rect(), Qt::black);
+
+    double maxValue = 0.;
+    for (double value : _kinetic)
+        maxValue = qMax(maxValue, value);
+    for (double value : _magnetic)
+        maxValue = qMax(maxValue, value);
+
+    if (_kinetic.size() < 3 || maxValue <= 0.) {
+        painter.setPen(Qt::gray);
+        painter.drawText(rect(), Qt::AlignCenter,
+                         "The spectra appear on the next output of a "
+                         "running simulation");
+        return;
+    }
+
+    const QRectF plot(64., 20., width() - 84., height() - 60.);
+    const double maxWN = (double)(_kinetic.size() - 1);
+    const double logMaxWN = std::log10(maxWN);
+
+    // Vertical range: a fixed number of decades down from the maximum
+    const int decades = 10;
+    const int maxExp = (int)std::ceil(std::log10(maxValue));
+
+    auto pointX = [&](double k) {
+        return plot.left() + plot.width() * std::log10(k) / logMaxWN;
+    };
+    auto pointY = [&](double value) {
+        return plot.top() + plot.height() *
+                                ((double)maxExp - std::log10(value)) / decades;
+    };
+
+    // Grid: wavenumber decades and every second energy decade
+    painter.setPen(QColor(60, 60, 60));
+    painter.setFont(QFont(painter.font().family(), 8));
+    for (double k = 1.; k <= maxWN; k *= 10.) {
+        double x = pointX(k);
+        painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()));
+        painter.setPen(Qt::gray);
+        painter.drawText(QRectF(x - 30., plot.bottom() + 6., 60., 16.),
+                         Qt::AlignCenter, QString::number(k));
+        painter.setPen(QColor(60, 60, 60));
+    }
+    for (int exponent = maxExp; exponent >= maxExp - decades; exponent -= 2) {
+        double y = pointY(std::pow(10., exponent));
+        painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
+        painter.setPen(Qt::gray);
+        painter.drawText(QRectF(0., y - 8., plot.left() - 6., 16.),
+                         Qt::AlignRight | Qt::AlignVCenter,
+                         QString("1e%1").arg(exponent));
+        painter.setPen(QColor(60, 60, 60));
+    }
+    painter.setPen(Qt::gray);
+    painter.drawText(QRectF(plot.center().x() - 20., height() - 22., 40., 16.),
+                     Qt::AlignCenter, "k");
+
+    // Curves
+    painter.setRenderHint(QPainter::Antialiasing);
+    const double minValue = std::pow(10., maxExp - decades);
+    auto drawCurve = [&](const std::vector<double>& spectrum,
+                         const QColor& color) {
+        QPainterPath path;
+        bool started = false;
+        for (unsigned int k = 1; k < spectrum.size(); k++) {
+            if (spectrum[k] < minValue) {
+                started = false;
+                continue;
+            }
+            QPointF point(pointX((double)k), pointY(spectrum[k]));
+            if (started) {
+                path.lineTo(point);
+            } else {
+                path.moveTo(point);
+                started = true;
+            }
+        }
+        painter.setPen(QPen(color, 1.5));
+        painter.drawPath(path);
+    };
+
+    const QColor kineticColor(80, 180, 255);
+    const QColor magneticColor(255, 150, 60);
+    drawCurve(_kinetic, kineticColor);
+    drawCurve(_magnetic, magneticColor);
+
+    // Legend
+    painter.setPen(kineticColor);
+    painter.drawText(QRectF(plot.right() - 150., plot.top() + 4., 150., 16.),
+                     Qt::AlignLeft, "kinetic");
+    painter.setPen(magneticColor);
+    painter.drawText(QRectF(plot.right() - 150., plot.top() + 22., 150., 16.),
+                     Qt::AlignLeft, "magnetic");
+}
+
 MainWindow::MainWindow(const std::filesystem::path& resPath,
                        const std::filesystem::path& configsPath)
     : _configsPath(configsPath) {
     setWindowTitle("MHD Simulation");
 
     _view = new FieldView(this);
+    _spectrum = new SpectrumView(this);
+    _tabs = new QTabWidget(this);
+    _tabs->setDocumentMode(true);
+    _tabs->addTab(_view, "Field");
+    _tabs->addTab(_spectrum, "Spectra");
     QWidget* side = buildSettingsPanel(resPath);
 
     // The widgets start from the same defaults as a configuration file
@@ -82,7 +198,7 @@ MainWindow::MainWindow(const std::filesystem::path& resPath,
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-    layout->addWidget(_view, 1);
+    layout->addWidget(_tabs, 1);
     layout->addWidget(side, 0);
 
     // Default geometry: the window is exactly as tall as the settings
@@ -375,6 +491,15 @@ void MainWindow::showFrame(const unsigned char* rgb, unsigned int length) {
     // The OpenGL window drew the buffer with the first row at the bottom;
     // flipping keeps the picture orientation the same as before
     _view->setImage(image.flipped(Qt::Vertical));
+}
+
+bool MainWindow::spectraVisible() const {
+    return _tabs->currentWidget() == _spectrum;
+}
+
+void MainWindow::showSpectra(const std::vector<double>& kinetic,
+                             const std::vector<double>& magnetic) {
+    _spectrum->setSpectra(kinetic, magnetic);
 }
 
 void MainWindow::showStatus(const mhd::Currents& currents) {

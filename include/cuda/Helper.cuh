@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <vector>
 
 #include "../Configs.h"
 
@@ -44,6 +45,9 @@ protected:
         // Auxiliary Fields: Temporary CPU
         CpuBuffer1D<T> _cpuReducedValue;
 
+        // Staging buffer for the shell energy spectrum (length N/2 + 1)
+        CpuBuffer1D<T> _cpuSpectrum;
+
         // Output buffer: Temporary CPU
         CpuBuffer2D<T> _output;
 
@@ -67,12 +71,15 @@ protected:
               _doubleBufferH(gridLength),
               _gpuTimeStep(1),
               _cpuReducedValue(1),
+              _cpuSpectrum(gridLength / 2 + 1),
               _output(gridLength) {}
     } _fields;
 
     void normallize(GpuComplexBuffer2D<T>& field, double ratio);
     double maxRotorAmplitude(const GpuComplexBuffer2D<T>& field);
     double calcEnergy(const GpuComplexBuffer2D<T>& field);
+    void calcSpectrum(const GpuComplexBuffer2D<T>& field,
+                      std::vector<double>& spectrum);
 
 public:
     Currents _currents;
@@ -90,6 +97,11 @@ public:
     void timeStep();
     void updateTimeStep();
     void updateEnergies();
+
+    // Shell energy spectra E(k) of the velocity and the magnetic field;
+    // the sums over the shells match the total energies
+    void updateSpectra(std::vector<double>& kinetic,
+                       std::vector<double>& magnetic);
 
     void saveOldFields();
 
@@ -117,6 +129,7 @@ public:
     GpuBuffer2D<T>& DoubleBufferH();
     GpuBuffer2D<T>& GpuTimeStep();
     CpuBuffer1D<T>& CpuReducedValue();
+    CpuBuffer1D<T>& CpuSpectrum();
     CpuBuffer2D<T>& Output();
 
     bool shouldContinue();

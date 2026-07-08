@@ -57,6 +57,37 @@ double Helper<T>::calcEnergy(const GpuComplexBuffer2D<T>& field) {
 }
 
 template <typename T>
+void Helper<T>::calcSpectrum(const GpuComplexBuffer2D<T>& field,
+                             std::vector<double>& spectrum) {
+    unsigned int length = _configs._gridLength / 2 + 1;
+
+    // The first elements of the scratch DoubleBufferA hold the spectrum
+    // accumulator on the device
+    _caller.callKernel(FillZero_kernel<T>, dim3(256, 1, 1),
+                       dim3((length + 255) / 256, 1, 1), 0,
+                       DoubleBufferA().data(), length);
+    _caller.call(EnergySpectrum_kernel<T>, field.data(),
+                 DoubleBufferA().data(), _configs._gridLength);
+
+    CpuSpectrum().copyFromDevice(DoubleBufferA().data());
+
+    // Same normalization as calcEnergy (E = 4 pi^2 sum k^2 |lambda f|^2 / 2),
+    // so the sum of the shells matches the total energy
+    const double norm = 2. * M_PI * M_PI * _configs._lambda * _configs._lambda;
+    spectrum.resize(length);
+    for (unsigned int i = 0; i < length; i++) {
+        spectrum[i] = norm * (double)CpuSpectrum()[i];
+    }
+}
+
+template <typename T>
+void Helper<T>::updateSpectra(std::vector<double>& kinetic,
+                              std::vector<double>& magnetic) {
+    calcSpectrum(Stream(), kinetic);
+    calcSpectrum(Potential(), magnetic);
+}
+
+template <typename T>
 void Helper<T>::normallize(GpuComplexBuffer2D<T>& field, double ratio) {
     _caller.call(MultComplex_kernel<T>, field.data(), field.length(), (T)ratio,
                  field.data());
@@ -199,6 +230,11 @@ GpuBuffer2D<T>& Helper<T>::GpuTimeStep() {
 template <typename T>
 CpuBuffer1D<T>& Helper<T>::CpuReducedValue() {
     return _fields._cpuReducedValue;
+}
+
+template <typename T>
+CpuBuffer1D<T>& Helper<T>::CpuSpectrum() {
+    return _fields._cpuSpectrum;
 }
 
 template <typename T>

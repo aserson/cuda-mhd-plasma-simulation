@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include <QImage>
 #include <QWidget>
@@ -15,6 +16,7 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 class QSpinBox;
+class QTabWidget;
 
 namespace qtui {
 
@@ -30,6 +32,22 @@ protected:
 
 private:
     QImage _image;
+};
+
+// Log-log plot of the kinetic and magnetic shell energy spectra E(k)
+class SpectrumView : public QWidget {
+public:
+    explicit SpectrumView(QWidget* parent = nullptr);
+
+    void setSpectra(const std::vector<double>& kinetic,
+                    const std::vector<double>& magnetic);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    std::vector<double> _kinetic;
+    std::vector<double> _magnetic;
 };
 
 // Main window: the field view on the left, all simulation settings on
@@ -59,6 +77,11 @@ public:
     void showFrame(const unsigned char* rgb, unsigned int length);
     void showStatus(const mhd::Currents& currents);
 
+    // The spectra are computed only when their tab is in front
+    bool spectraVisible() const;
+    void showSpectra(const std::vector<double>& kinetic,
+                     const std::vector<double>& magnetic);
+
 protected:
     void closeEvent(QCloseEvent* event) override;
 
@@ -77,7 +100,9 @@ private:
     bool _stopRequested = false;
     bool _closed = false;
 
+    QTabWidget* _tabs = nullptr;
     FieldView* _view = nullptr;
+    SpectrumView* _spectrum = nullptr;
 
     // Status
     QLabel* _statusLabel = nullptr;
