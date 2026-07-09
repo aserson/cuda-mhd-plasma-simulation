@@ -77,9 +77,7 @@ In the build without Qt the parameters are set by a configuration file from the 
 
 ## Screen Recording of the application
 
-<!-- To embed the video with the GitHub player: edit README.md on github.com
-     and drag res/mhd_plasma_example_github.mp4 into the editor right below
-     this comment; GitHub replaces it with a user-attachments URL -->
+https://github.com/user-attachments/assets/a4d4c91f-b132-41e8-ae28-d1c9c1b3bf6a
 
 The recording shows the Qt interface during a forced turbulence run: the
 vorticity field, the energy spectra view and the settings panel.
